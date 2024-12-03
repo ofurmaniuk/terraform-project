@@ -92,3 +92,4 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
           # Test comment 
+          # Second comment
