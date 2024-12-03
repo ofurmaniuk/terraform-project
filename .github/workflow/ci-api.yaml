@@ -5,6 +5,7 @@ on:
     branches: [ main ]
     paths:
       - 'apps/api/**'
+      - '.github/workflow/ci-api.yaml'
   pull_request:
     branches: [ main ]
     paths:
