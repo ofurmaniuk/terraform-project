@@ -6,6 +6,10 @@ on:
     branches: [ "main" ]
     paths:
       - "apps/api/**"
+      - "apps/api/src"
+      - "apps/api/tests"
+      - "apps/api/package.json"
+      - "apps/api/Dockerfile"
       - ".github/workflow/ci-api.yaml"
 
 jobs:
