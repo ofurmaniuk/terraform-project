@@ -1,6 +1,7 @@
 name: API CI Pipeline
 
 on:
+  workflow_dispatch:
   push:
     branches: [ main ]
     paths:
@@ -13,7 +14,7 @@ on:
 
 jobs:
   lint-and-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     defaults:
       run:
         working-directory: ./apps/api
