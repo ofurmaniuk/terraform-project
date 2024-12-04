@@ -22,12 +22,10 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Verify package-lock.json
+      - name: Debug - List directory
         run: |
-          if [ ! -f "package-lock.json" ]; then
-            echo "Error: package-lock.json not found"
-            exit 1
-          fi
+          pwd
+          ls -la
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
@@ -37,16 +35,13 @@ jobs:
           cache-dependency-path: ./apps/api/package-lock.json
 
       - name: Install dependencies
-        working-directory: ./apps/web
-        run: |
-          npm clean-install
-          npm ci
+        run: npm ci
 
       - name: Install ESLint and Prettier
         run: |
           npm install eslint prettier eslint-config-prettier eslint-plugin-prettier --save-dev
           npm install @typescript-eslint/parser @typescript-eslint/eslint-plugin --save-dev
-
+          
       - name: Run ESLint
         run: npx eslint . --ext .js,.jsx,.ts,.tsx
 
@@ -103,5 +98,4 @@ jobs:
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
 
-          # Test comment 
-          # Second comment
+          
