@@ -21,9 +21,15 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '14'
+          # Removing cache configuration temporarily
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          npm install
+          # Create package-lock.json if it doesn't exist
+          if [ ! -f "package-lock.json" ]; then
+            npm install --package-lock-only
+          fi
 
       - name: Run ESLint
         run: npx eslint .
