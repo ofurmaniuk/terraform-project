@@ -7,7 +7,7 @@ on:
    paths:
      - "apps/api/**"   
      - ".github/workflows/api-ci.yaml"
-     - "apps/api/sonar-project.properties"
+     - "apps/sonar-project.properties"
  pull_request:
    branches: [ "main" ]
    paths:
@@ -72,7 +72,7 @@ jobs:
            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
        with:
-           projectBaseDir: apps/api
+           projectBaseDir: apps
            args: >
              -Dsonar.organization=ofurmaniuk
              -Dsonar.projectKey=ofurmaniuk_terraform-project
