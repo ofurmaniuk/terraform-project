@@ -9,7 +9,8 @@ on:
   pull_request:
     branches: [ "main" ]
     paths:
-      - "apps/api/**"   
+      - "apps/api/**" 
+      - "api-pipeline.yaml"  
 
 jobs:
   build:
