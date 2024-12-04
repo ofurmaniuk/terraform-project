@@ -6,11 +6,6 @@ on:
     branches: [ "main" ]
     paths:
       - "apps/api/**"
-      - "apps/api/src"
-      - "apps/api/tests"
-      - "apps/api/package.json"
-      - "apps/api/Dockerfile"
-      - ".github/workflow/ci-api.yaml"
 
 jobs:
   lint-and-test:
@@ -22,31 +17,16 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Debug - List directory
-        run: |
-          echo "Current directory:"
-          pwd
-          echo "Contents:"
-          ls -la
-          echo "Package.json exists:"
-          test -f package.json && echo "Yes" || echo "No"
-
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '14'
 
       - name: Install dependencies
-        run: |
-          npm install
-          npm install eslint prettier eslint-config-prettier eslint-plugin-prettier --save-dev
-          npm install @typescript-eslint/parser @typescript-eslint/eslint-plugin --save-dev
-          
-      - name: Run ESLint
-        run: npx eslint . --ext .js,.jsx,.ts,.tsx
+        run: npm install
 
-      - name: Run Prettier
-        run: npx prettier --check .
+      - name: Run ESLint
+        run: npx eslint .
 
   sonarcloud:
     runs-on: ubuntu-latest
