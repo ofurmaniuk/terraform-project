@@ -15,7 +15,7 @@ on:
      - ".github/workflows/api-ci.yaml"
 
 jobs:
-  lint:
+ lint:
    runs-on: ubuntu-latest
    steps:
      - uses: actions/checkout@v3
@@ -40,7 +40,7 @@ jobs:
        run: ./node_modules/.bin/eslint . --max-warnings 999 || true
 
  test:
-   needs: eslint
+   needs: lint
    runs-on: ubuntu-latest
    steps:
      - uses: actions/checkout@v3
@@ -72,7 +72,7 @@ jobs:
            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
        with:
-           projectBaseDir: apps
+           projectBaseDir: apps/api
            args: >
              -Dsonar.organization=ofurmaniuk
              -Dsonar.projectKey=ofurmaniuk_terraform-project
