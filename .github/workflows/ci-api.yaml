@@ -1,4 +1,4 @@
-name: API CI Pipeline
+name: API CI Pipeline v1.0
 
 on:
   workflow_dispatch:
@@ -17,27 +17,16 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Debug environment
-        run: |
-          echo "==== Directory Structure ===="
-          pwd
-          ls -la
-          echo "==== Node Version ===="
-          node -v || echo "Node not installed"
-          echo "==== NPM Version ===="
-          npm -v || echo "NPM not installed"
-
       - name: Set up Node.js
         uses: actions/setup-node@v3
+        env:
+          FORCE_COLOR: 0
         with:
           node-version: '16'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
-        run: |
-          echo "==== Installing Dependencies ===="
-          npm install --verbose
-          echo "==== NPM List ===="
-          npm list --depth=0
+        run: npm install
 
       - name: Run ESLint
         run: npx eslint .
