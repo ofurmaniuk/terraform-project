@@ -7,6 +7,7 @@ on:
     paths:
       - "apps/api/**"   
       - ".github/workflows/api-pipeline.yaml"
+      - "apps/api/sonar-project.properties"
   pull_request:
     branches: [ "main" ]
     paths:
