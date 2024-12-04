@@ -1,41 +1,44 @@
-name: API-Pipeline-Fresh
+# Modify .github/workflows/api-pipeline.yaml to be:
+  name: API-Pipeline-Fresh
 
-on:
-  workflow_dispatch:
-  push:
-    branches: [ "main" ]
-    paths:
-      - "apps/api/**"
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '16'
-          registry-url: 'https://registry.npmjs.org'
-
-      - name: Install dependencies
-        working-directory: ./apps/api
-        run: npm install
-
-      - name: Run ESLint
-        working-directory: ./apps/api
-        run: npx eslint .
-
-  docker:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Docker Build and Push
-        uses: docker/build-push-action@v4
-        with:
-          context: ./apps/api
-          push: true
-          tags: ofurmaniuk/app-api:latest,ofurmaniuk/app-api:${{ github.sha }}
+  on:
+    workflow_dispatch:
+    push:
+      branches: [ "main" ]
+      paths:
+        - "apps/api/**"
+  
+  jobs:
+    build:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v3
+        
+        - name: Set up Node.js
+          uses: actions/setup-node@v3
+          with:
+            node-version: '18'  # Update from 16 to 18
+            registry-url: 'https://registry.npmjs.org'
+  
+        - name: Install dependencies
+          working-directory: ./apps/api
+          run: |
+            npm ci
+            npm install eslint@8.56.0 --save-dev  # Pin ESLint version
+  
+        - name: Run ESLint
+          working-directory: ./apps/api
+          run: npx eslint . --max-warnings 0
+  
+    docker:
+      needs: build
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v3
+  
+        - name: Docker Build and Push
+          uses: docker/build-push-action@v4
+          with:
+            context: ./apps/api
+            push: true
+            tags: ofurmaniuk/app-api:latest,ofurmaniuk/app-api:${{ github.sha }}
