@@ -6,11 +6,12 @@ on:
     branches: [ "main" ]
     paths:
       - "apps/api/**"   
+      - ".github/workflows/api-pipeline.yaml" 
   pull_request:
     branches: [ "main" ]
     paths:
       - "apps/api/**" 
-      - "api-pipeline.yaml"  
+      - ".github/workflows/api-pipeline.yaml"    
 
 jobs:
   build:
