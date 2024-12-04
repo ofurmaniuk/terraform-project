@@ -22,6 +22,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Verify package-lock.json
+        run: |
+          if [ ! -f "package-lock.json" ]; then
+            echo "Error: package-lock.json not found"
+            exit 1
+          fi
+
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
