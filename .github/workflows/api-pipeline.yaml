@@ -23,21 +23,10 @@ jobs:
         working-directory: ./apps/api
         run: |
           npm install
-          npm install eslint@8.56.0 eslint-config-standard --save-dev
-
-      - name: Create ESLint config
-        working-directory: ./apps/api
-        run: |
-          echo '{
-            "extends": "standard",
-            "env": {
-              "node": true,
-              "es6": true
-            },
-            "rules": {
-              "semi": ["error", "always"]
-            }
-          }' > .eslintrc.json
+          npm install --save-dev eslint@8.56.0 \
+                               prettier \
+                               eslint-config-prettier \
+                               eslint-plugin-prettier
 
       - name: Run ESLint
         working-directory: ./apps/api
