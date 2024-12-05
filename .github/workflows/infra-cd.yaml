@@ -1,0 +1,88 @@
+name: Infrastructure-CD
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "modules/**"
+      - ".github/workflows/infra-cd.yaml"
+      - "*.tf"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: terraform-linters/setup-tflint@v3
+      - run: tflint --init
+      - run: tflint -f compact
+
+  prep:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-2
+      - uses: hashicorp/setup-terraform@v2
+      - run: terraform init
+      - run: terraform plan -out=tfplan
+      - uses: actions/upload-artifact@v3
+        with:
+          name: tfplan
+          path: tfplan
+
+  vpc:
+    needs: prep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-2
+      - uses: hashicorp/setup-terraform@v2
+      - uses: actions/download-artifact@v3
+        with:
+          name: tfplan
+      - run: terraform init
+      - run: terraform apply -target=module.vpc -auto-approve tfplan
+
+  rds:
+    needs: vpc
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-2
+      - uses: hashicorp/setup-terraform@v2
+      - uses: actions/download-artifact@v3
+        with:
+          name: tfplan
+      - run: terraform init
+      - run: terraform apply -target=module.rds -auto-approve tfplan
+
+  eks:
+    needs: rds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-2
+      - uses: hashicorp/setup-terraform@v2
+      - uses: actions/download-artifact@v3
+        with:
+          name: tfplan
+      - run: terraform init
+      - run: terraform apply -target=module.eks -auto-approve tfplan
