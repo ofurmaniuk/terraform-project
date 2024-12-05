@@ -9,7 +9,7 @@ resource "aws_security_group" "aurora" {
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
-    security_groups = [var.web_security_group_id, var.eks_cluster_security_group_id, "sg-03b5e8b0425369afc"]  # Added the auto-created EKS cluster security group
+    security_groups = [var.web_security_group_id, var.eks_cluster_security_group_id]
   }
 
   egress {
@@ -18,7 +18,6 @@ resource "aws_security_group" "aurora" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
   tags = merge(local.common_tags, {
     Name = "${var.environment}-aurora-sg"
   })
