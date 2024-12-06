@@ -9,8 +9,8 @@ module "vpc" {
   environment     = var.environment
   az_a           = var.az_a
   az_b           = var.az_b
+  tags           = local.common_tags
 }
-
 module "rds" {
   source = "./modules/rds"
 
