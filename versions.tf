@@ -27,3 +27,8 @@ terraform {
 provider "aws" {
   region = "us-east-2"
 }
+
+variable "common_tags" {
+  description = "Common tags to be applied to all resources"
+  type        = map(string)
+}

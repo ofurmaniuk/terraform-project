@@ -48,3 +48,10 @@ variable "az_b" {
   type        = string
   default     = "us-east-2b"
 }
+
+# In modules/vpc/variables.tf, modules/rds/variables.tf, and modules/eks/variables.tf
+variable "tags" {
+  description = "Common tags to be applied to all resources"
+  type        = map(string)
+  default     = {}
+}
