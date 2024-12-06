@@ -9,10 +9,6 @@ on:
       - ".github/workflows/infra-cd.yaml"
       - "*.tf"
 
-permissions:
-  id-token: write
-  contents: read
-
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -35,67 +31,55 @@ jobs:
             tflint-results.json
             tflint-output.txt
 
-  prep:
+  preparation:
     needs: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: aws-actions/configure-aws-credentials@v2
+      
+      - name: Install Terraform
+        run: make install
+      
+      - name: Initialize Terraform
+        run: make init
+        
+      - name: Terraform Plan
+        run: |
+          make plan | tee tf-plan-output.txt
+          
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v3
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-2
-      - uses: hashicorp/setup-terraform@v2
-      - run: terraform init
-      - run: terraform plan -out=tfplan
-      - uses: actions/upload-artifact@v3
-        with:
-          name: tfplan
-          path: tfplan
+          name: tf-plan
+          path: tf-plan-output.txt
 
-  vpc:
-    needs: prep
+  deploy:
+    needs: preparation
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: aws-actions/configure-aws-credentials@v2
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-2
-      - uses: hashicorp/setup-terraform@v2
-      - uses: actions/download-artifact@v3
-        with:
-          name: tfplan
-      - run: terraform init
-      - run: terraform apply -target=module.vpc -auto-approve tfplan
+      
+      - name: Install Terraform
+        run: make install
+      
+      - name: Initialize Terraform
+        run: make init
+      
+      - name: Apply Infrastructure
+        run: make apply
 
-  rds:
-    needs: vpc
+  destroy:
+    needs: deploy
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v3
-      - uses: aws-actions/configure-aws-credentials@v2
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-2
-      - uses: hashicorp/setup-terraform@v2
-      - uses: actions/download-artifact@v3
-        with:
-          name: tfplan
-      - run: terraform init
-      - run: terraform apply -target=module.rds -auto-approve tfplan
-
-  eks:
-    needs: rds
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: aws-actions/configure-aws-credentials@v2
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-2
-      - uses: hashicorp/setup-terraform@v2
-      - uses: actions/download-artifact@v3
-        with:
-          name: tfplan
-      - run: terraform init
-      - run: terraform apply -target=module.eks -auto-approve tfplan
+      
+      - name: Install Terraform
+        run: make install
+      
+      - name: Initialize Terraform
+        run: make init
+      
+      - name: Destroy Infrastructure
+        run: make destroy
