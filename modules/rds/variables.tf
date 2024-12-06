@@ -32,3 +32,10 @@ variable "eks_cluster_security_group_id" {
   description = "Security group ID of the EKS cluster"
   type        = string
 }
+
+# In modules/vpc/variables.tf, modules/rds/variables.tf, and modules/eks/variables.tf
+variable "tags" {
+  description = "Common tags to be applied to all resources"
+  type        = map(string)
+  default     = {}
+}
