@@ -11,7 +11,6 @@ module "vpc" {
   az_a           = var.az_a
   az_b           = var.az_b
   
-  tags           = local.common_tags 
 }
 
 # RDS Module
@@ -26,7 +25,6 @@ module "rds" {
   db_name                        = var.db_name
   master_username                = var.master_username
   
-  tags           = local.common_tags 
 }
 
 # EKS Module
@@ -38,5 +36,4 @@ module "eks" {
   private_subnet_ids = module.vpc.private_subnets
   public_subnet_ids  = module.vpc.public_subnets
   
-  tags           = local.common_tags 
 }
