@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@v3
       
       - name: Install Terraform
-        run: make install
+        run: make ubuntu-install
       
       - name: Initialize Terraform
         run: make init
@@ -60,7 +60,7 @@ jobs:
       - uses: actions/checkout@v3
       
       - name: Install Terraform
-        run: make install
+        run: make ubuntu-install
       
       - name: Initialize Terraform
         run: make init
@@ -76,7 +76,7 @@ jobs:
       - uses: actions/checkout@v3
       
       - name: Install Terraform
-        run: make install
+        run: make ubuntu-install
       
       - name: Initialize Terraform
         run: make init
