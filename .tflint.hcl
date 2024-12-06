@@ -4,10 +4,6 @@ plugin "aws" {
   source  = "github.com/terraform-linters/tflint-ruleset-aws"
 }
 
-config {
-  call_module_type = "local"
-}
-
 rule "terraform_deprecated_index" {
   enabled = true
 }
@@ -32,14 +28,21 @@ rule "terraform_typed_variables" {
   enabled = true
 }
 
-rule "terraform_naming_convention" {
-  enabled = true
-}
-
 rule "terraform_required_version" {
   enabled = true
 }
 
 rule "terraform_required_providers" {
   enabled = true
+}
+
+rule "terraform_naming_convention" {
+  enabled = true
+  format  = "snake_case"
+}
+
+config {
+  module = true
+  force  = false
+  disabled_by_default = false
 }
