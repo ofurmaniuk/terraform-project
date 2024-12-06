@@ -51,3 +51,8 @@ variable "az_b" {
   description = "Availability zone B"
   type        = string
 }
+
+variable "common_tags" {
+  description = "Common tags to be applied to all resources"
+  type        = map(string)
+}
