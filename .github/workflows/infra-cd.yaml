@@ -2,6 +2,16 @@ name: Infra-cd
 
 on:
   workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+        default: 'plan'
   push:
     branches: [ "main" ]
     paths:
@@ -23,6 +33,7 @@ env:
 
 jobs:
   lint:
+    if: github.event_name == 'push' || github.event.inputs.action != 'destroy'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -31,7 +42,8 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
@@ -58,6 +70,7 @@ jobs:
             tflint-output.txt
 
   preparation:
+    if: github.event_name == 'push' || github.event.inputs.action != 'destroy'
     needs: lint
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -67,7 +80,8 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
       
       - name: Setup Terraform
@@ -95,6 +109,7 @@ jobs:
         run: exit 1
 
   deploy:
+    if: github.event_name == 'push' || github.event.inputs.action == 'apply'
     needs: preparation
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -104,7 +119,8 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
       
       - name: Setup Terraform
@@ -128,17 +144,17 @@ jobs:
           aws rds describe-db-clusters --query 'DBClusters[?DBClusterIdentifier==`production-aurora-cluster`].Status' || exit 1
 
   destroy:
-    needs: deploy
+    if: github.event.inputs.action == 'destroy'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v3
       
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
       
       - name: Setup Terraform
