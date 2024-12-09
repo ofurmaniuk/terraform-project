@@ -1,4 +1,4 @@
-name: Infrastructure-CD
+name: Infra-CD
 
 on:
   workflow_dispatch:
@@ -34,6 +34,11 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: "1.10.1"
+
       - uses: terraform-linters/setup-tflint@v3
       - run: tflint --init
       
@@ -65,16 +70,18 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
       
-      - name: Install Terraform
-        run: make install
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: "1.10.1"
       
       - name: Initialize Terraform
-        run: make init
+        run: terraform init
         
       - name: Terraform Plan
         id: plan
         run: |
-          make plan | tee tf-plan-output.txt
+          terraform plan -out=tfplan | tee tf-plan-output.txt
         continue-on-error: true
           
       - name: Upload Terraform Plan
@@ -100,15 +107,17 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
       
-      - name: Install Terraform
-        run: make install
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: "1.10.1"
       
       - name: Initialize Terraform
-        run: make init
+        run: terraform init
       
       - name: Apply Infrastructure
         id: apply
-        run: make apply
+        run: terraform apply -auto-approve
       
       - name: Verify Infrastructure
         run: |
@@ -132,14 +141,16 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
       
-      - name: Install Terraform
-        run: make install
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: "1.10.1"
       
       - name: Initialize Terraform
-        run: make init
+        run: terraform init
       
       - name: Destroy Infrastructure
-        run: make destroy
+        run: terraform destroy -auto-approve
         
       - name: Verify Destruction
         run: |
