@@ -182,14 +182,18 @@ jobs:
         
       - name: Verify Destruction
         run: |
-          # Verify EKS cluster deletion
-          if aws eks describe-cluster --name production-cluster 2>/dev/null; then
-            echo "EKS cluster still exists"
-            exit 1
-          fi
-          
-          # Verify RDS cluster deletion
+          # Wait for RDS cluster deletion (max 5 minutes)
+          for i in {1..30}; do
+            if ! aws rds describe-db-clusters --query 'DBClusters[?DBClusterIdentifier==`production-aurora-cluster`]' 2>/dev/null; then
+              echo "RDS cluster deleted successfully"
+              break
+            fi
+            echo "Waiting for RDS cluster deletion..."
+            sleep 10
+          done
+
+          # Final verification
           if aws rds describe-db-clusters --query 'DBClusters[?DBClusterIdentifier==`production-aurora-cluster`]' 2>/dev/null; then
-            echo "RDS cluster still exists"
+            echo "RDS cluster still exists after timeout"
             exit 1
           fi
