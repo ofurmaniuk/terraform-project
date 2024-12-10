@@ -57,7 +57,13 @@ resource "aws_rds_cluster" "aurora" {
   tags = merge(local.common_tags, {
     Name = "${var.environment}-aurora-cluster"
   })
+
+ timeouts {
+    delete = "30m"  # Increase from default 5m to 30m
+  }
+
 }
+
 
 # Aurora Instance
 resource "aws_rds_cluster_instance" "aurora_instance" {
