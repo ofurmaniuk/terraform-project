@@ -33,14 +33,14 @@ module "eks" {
 }
 
 
-module "tools" {
-  source = "./modules/tools"
+# module "tools" {
+#   source = "./modules/tools"
 
-  environment            = var.environment
-  cluster_endpoint      = module.eks.cluster_endpoint
-  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+#   environment            = var.environment
+#   cluster_endpoint      = module.eks.cluster_endpoint
+#   cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
 
-  depends_on = [
-    module.eks
-  ]
-}
+#   depends_on = [
+#     module.eks
+#   ]
+# }
