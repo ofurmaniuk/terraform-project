@@ -31,3 +31,16 @@ module "eks" {
   private_subnet_ids = module.vpc.private_subnets
   public_subnet_ids  = module.vpc.public_subnets
 }
+
+
+module "tools" {
+  source = "./modules/tools"
+
+  environment            = var.environment
+  cluster_endpoint      = module.eks.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+
+  depends_on = [
+    module.eks
+  ]
+}
