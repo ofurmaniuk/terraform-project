@@ -58,10 +58,6 @@ resource "aws_rds_cluster" "aurora" {
     Name = "${var.environment}-aurora-cluster"
   })
 
- timeouts {
-    delete = "30m"  # Increase from default 5m to 30m
-  }
-
 }
 
 
