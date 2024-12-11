@@ -102,6 +102,10 @@ jobs:
 
           aws eks update-kubeconfig --name $(terraform output -raw eks_cluster_name) --region $AWS_REGION
           
+          echo "Removing Kubernetes resources..."
+          kubectl delete all --all --all-namespaces || true
+          kubectl delete pvc --all --all-namespaces || true
+          
           echo "Removing Helm releases..."
           kubectl delete helmrelease --all --all-namespaces || true
           
@@ -110,23 +114,27 @@ jobs:
             kubectl delete svc -n $ns --all || true
           done
           
-          echo "Removing all workloads..."
-          kubectl delete deployment,statefulset,daemonset --all --all-namespaces || true
-          
-          echo "Removing PVCs..."
-          kubectl delete pvc --all --all-namespaces || true
+          echo "Waiting for resources to be cleaned up..."
+          sleep 30
 
       - name: Destroy Infrastructure
         run: |
-          echo "Destroying EKS resources..."
-          terraform destroy -target="module.tools" -auto-approve || true
-          terraform destroy -target="module.eks" -auto-approve || true
+          echo "Destroying EKS node groups..."
+          terraform destroy -target="module.eks.aws_eks_node_group.main" -auto-approve || true
           
-          echo "Destroying RDS resources..."
-          terraform destroy -target="module.rds" -auto-approve || true
+          echo "Destroying EKS cluster..."
+          terraform destroy -target="module.eks.aws_eks_cluster.main" -auto-approve || true
+          
+          echo "Destroying RDS instances..."
+          terraform destroy -target="module.rds.aws_rds_cluster_instance.aurora_instance" -auto-approve || true
+          
+          echo "Destroying RDS cluster..."
+          terraform destroy -target="module.rds.aws_rds_cluster.aurora" -auto-approve || true
           
           echo "Destroying remaining resources..."
           terraform destroy -auto-approve
+
+      
 
       - name: Verify Destruction
         run: |
