@@ -4,39 +4,22 @@ metadata:
   name: api-deployment
   namespace: production
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: api
   template:
-    metadata:
-      labels:
-        app: api
     spec:
+      initContainers:
+      - name: fix-path
+        image: busybox:stable
+        command: ['sh', '-c']
+        args:
+          - cp -r /usr/src/app/src/bin /usr/src/app/ && chmod +x /usr/src/app/bin/www
+        volumeMounts:
+          - name: app-files
+            mountPath: /usr/src/app
       containers:
-        - name: api
-          image: ofurmaniuk/app-api:latest 
-          ports:
-            - containerPort: 3000
-          envFrom:
-            - configMapRef:
-                name: api-config
-          readinessProbe:
-            httpGet:
-              path: /api/status
-              port: 3000
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          livenessProbe:
-            httpGet:
-              path: /api/status
-              port: 3000
-            initialDelaySeconds: 15
-            periodSeconds: 20
-          resources:
-            requests:
-              memory: "128Mi"
-              cpu: "100m"
-            limits:
-              memory: "256Mi"
-              cpu: "200m"
+      - name: api
+        volumeMounts:
+          - name: app-files
+            mountPath: /usr/src/app
+      volumes:
+        - name: app-files
+          emptyDir: {}
