@@ -21,6 +21,7 @@ permissions:
 env:
   AWS_REGION: us-east-2
   TF_IN_AUTOMATION: true
+  TIMESTAMP: $(date +%Y%m%d_%H%M%S)
 
 jobs:
   destroy-preparation:
@@ -50,18 +51,33 @@ jobs:
 
       - name: Verify AWS Permissions
         run: |
-          aws sts get-caller-identity
-          aws eks describe-cluster --name $(terraform output -raw eks_cluster_name) || true
-          aws rds describe-db-clusters || true
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          {
+            echo "=== AWS Permission Check Start ==="
+            aws sts get-caller-identity
+            aws eks describe-cluster --name $(terraform output -raw eks_cluster_name) || true
+            aws rds describe-db-clusters || true
+            echo "=== AWS Permission Check End ==="
+          } 2>&1 | tee verify-permissions-${TIMESTAMP}.log
+          
+          aws s3 cp verify-permissions-${TIMESTAMP}.log \
+          s3://ofurmaniuk/terraform-project/destroy-logs/verify-permissions-${TIMESTAMP}.log
 
-      - name: Backup State
+      - name: Backup State and Plan
         run: |
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          
+          # Backup tfstate
           aws s3 cp s3://ofurmaniuk/terraform-project/terraform.tfstate \
-          s3://ofurmaniuk/terraform-project/backups/terraform.tfstate.$(date +%Y%m%d_%H%M%S)
-      
-      - name: Plan Destroy
-        id: plan
-        run: terraform plan -destroy -out=destroy.tfplan
+          s3://ofurmaniuk/terraform-project/backups/terraform.tfstate.${TIMESTAMP}
+          
+          # Create and log destroy plan
+          {
+            terraform plan -destroy -out=destroy.tfplan
+          } 2>&1 | tee destroy-plan-${TIMESTAMP}.log
+          
+          aws s3 cp destroy-plan-${TIMESTAMP}.log \
+          s3://ofurmaniuk/terraform-project/destroy-logs/destroy-plan-${TIMESTAMP}.log
 
   destroy-approval:
     needs: destroy-preparation
@@ -72,7 +88,9 @@ jobs:
       url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
       - name: Approve Destruction
-        run: echo "Destruction approved for ${{ github.event.inputs.environment }}"
+        run: |
+          echo "Destruction approved for ${{ github.event.inputs.environment }}"
+          echo "Approval timestamp: $(date)"
 
   destroy-execution:
     needs: destroy-approval
@@ -101,100 +119,125 @@ jobs:
 
       - name: Cleanup Kubernetes Resources
         run: |
-          if ! aws eks describe-cluster --name $(terraform output -raw eks_cluster_name) 2>/dev/null; then
-            echo "EKS cluster not found, skipping cleanup"
-            exit 0
-          fi
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          {
+            if ! aws eks describe-cluster --name $(terraform output -raw eks_cluster_name) 2>/dev/null; then
+              echo "EKS cluster not found, skipping cleanup"
+              exit 0
+            fi
 
-          aws eks update-kubeconfig --name $(terraform output -raw eks_cluster_name) --region $AWS_REGION
+            aws eks update-kubeconfig --name $(terraform output -raw eks_cluster_name) --region $AWS_REGION
+            
+            echo "Removing namespaces and resources..."
+            kubectl delete namespace --all --grace-period=0 --force || true
+            
+            echo "Removing PVCs..."
+            kubectl delete pvc --all --all-namespaces --grace-period=0 --force || true
+            
+            echo "Removing LoadBalancer services..."
+            for ns in $(kubectl get ns --no-headers -o custom-columns=":metadata.name"); do
+              kubectl delete svc --all -n $ns --grace-period=0 --force || true
+            done
+            
+            echo "Waiting for resources cleanup..."
+            sleep 30
+          } 2>&1 | tee k8s-cleanup-${TIMESTAMP}.log
           
-          echo "Removing namespaces and resources..."
-          for ns in $(kubectl get ns -o name | grep -v "kube-system"); do
-            kubectl delete $ns --timeout=5m || true
-          done
-          
-          echo "Removing PVCs..."
-          kubectl delete pvc --all --all-namespaces || true
-          
-          echo "Removing LoadBalancer services..."
-          kubectl get ns --no-headers | while read ns; do
-            kubectl delete svc -n $ns --all || true
-          done
-          
-          echo "Waiting for resources cleanup..."
-          sleep 45
+          aws s3 cp k8s-cleanup-${TIMESTAMP}.log \
+          s3://ofurmaniuk/terraform-project/destroy-logs/k8s-cleanup-${TIMESTAMP}.log
 
       - name: Destroy Infrastructure
         run: |
-          echo "Starting ordered destruction process..."
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          {
+            echo "Starting ordered destruction process..."
+            
+            declare -a steps=(
+              "1. Destroying Kubernetes addons and services"
+              "2. Destroying load balancers and ingress"
+              "3. Destroying EKS node groups"
+              "4. Destroying EKS cluster"
+              "5. Destroying NAT Gateway"
+              "6. Destroying EIP"
+              "7. Destroying RDS instances"
+              "8. Destroying RDS cluster"
+              "9. Destroying VPC resources"
+              "10. Final cleanup"
+            )
+            
+            for step in "${steps[@]}"; do
+              echo "=== $step ==="
+              case "$step" in
+                *"addons"*)
+                  terraform destroy -target="module.tools" -auto-approve || true
+                  sleep 30
+                  ;;
+                *"load balancers"*)
+                  kubectl delete svc --all --all-namespaces || true
+                  sleep 30
+                  ;;
+                *"node groups"*)
+                  terraform destroy -target="module.eks.aws_eks_node_group.main" -auto-approve || true
+                  sleep 30
+                  ;;
+                *"EKS cluster"*)
+                  terraform destroy -target="module.eks.aws_eks_cluster.main" -auto-approve || true
+                  sleep 30
+                  ;;
+                *"NAT Gateway"*)
+                  terraform destroy -target="module.vpc.aws_nat_gateway.main" -auto-approve || true
+                  sleep 20
+                  ;;
+                *"EIP"*)
+                  terraform destroy -target="module.vpc.aws_eip.nat" -auto-approve || true
+                  sleep 20
+                  ;;
+                *"RDS instances"*)
+                  terraform destroy -target="module.rds.aws_rds_cluster_instance.aurora_instance" -auto-approve || true
+                  sleep 30
+                  ;;
+                *"RDS cluster"*)
+                  terraform destroy -target="module.rds.aws_rds_cluster.aurora" -auto-approve || true
+                  sleep 30
+                  ;;
+                *"VPC resources"*)
+                  terraform destroy -target="module.vpc" -auto-approve || true
+                  sleep 30
+                  ;;
+                *"Final cleanup"*)
+                  terraform destroy -auto-approve
+                  ;;
+              esac
+            done
+          } 2>&1 | tee destroy-execution-${TIMESTAMP}.log
           
-          echo "1. Destroying Kubernetes addons and services..."
-          terraform destroy -target="module.tools" -auto-approve || true
-          sleep 30
-          
-          echo "2. Destroying load balancers and ingress..."
-          kubectl delete svc --all --all-namespaces || true
-          sleep 30
-          
-          echo "3. Destroying EKS node groups..."
-          terraform destroy -target="module.eks.aws_eks_node_group.main" -auto-approve || true
-          sleep 30
-          
-          echo "4. Destroying EKS cluster..."
-          terraform destroy -target="module.eks.aws_eks_cluster.main" -auto-approve || true
-          sleep 30
-          
-          echo "5. Destroying NAT Gateway..."
-          terraform destroy -target="module.vpc.aws_nat_gateway.main" -auto-approve || true
-          sleep 20
-          
-          echo "6. Destroying EIP..."
-          terraform destroy -target="module.vpc.aws_eip.nat" -auto-approve || true
-          sleep 20
-          
-          echo "7. Destroying RDS instances..."
-          terraform destroy -target="module.rds.aws_rds_cluster_instance.aurora_instance" -auto-approve || true
-          sleep 30
-          
-          echo "8. Destroying RDS cluster..."
-          terraform destroy -target="module.rds.aws_rds_cluster.aurora" -auto-approve || true
-          sleep 30
-          
-          echo "9. Destroying VPC resources..."
-          terraform destroy -target="module.vpc" -auto-approve || true
-          sleep 30
-          
-          echo "10. Final cleanup of remaining resources..."
-          terraform destroy -auto-approve
+          aws s3 cp destroy-execution-${TIMESTAMP}.log \
+          s3://ofurmaniuk/terraform-project/destroy-logs/destroy-execution-${TIMESTAMP}.log
 
       - name: Verify Complete Destruction
+        if: always()
         run: |
-          echo "Running final verification checks..."
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          {
+            echo "=== Final Verification Checks ==="
+            
+            check_resource() {
+              local resource=$1
+              local cmd=$2
+              echo "Checking ${resource}..."
+              eval "$cmd"
+            }
+            
+            check_resource "EKS clusters" "aws eks list-clusters"
+            check_resource "RDS instances" "aws rds describe-db-instances"
+            check_resource "VPCs" "aws ec2 describe-vpcs --filters \"Name=tag:Environment,Values=${{ github.event.inputs.environment }}\""
+            check_resource "NAT Gateways" "aws ec2 describe-nat-gateways"
+            check_resource "EIPs" "aws ec2 describe-addresses"
+            
+          } 2>&1 | tee verification-${TIMESTAMP}.log
           
-          echo "Checking EKS clusters..."
-          if aws eks list-clusters | grep "production"; then
-            echo "Warning: EKS clusters still exist"
-          fi
-          
-          echo "Checking RDS instances..."
-          if aws rds describe-db-instances | grep "production"; then
-            echo "Warning: RDS instances still exist"
-          fi
-          
-          echo "Checking VPCs..."
-          if aws ec2 describe-vpcs --filters "Name=tag:Environment,Values=${{ github.event.inputs.environment }}" | grep "VpcId"; then
-            echo "Warning: Tagged VPCs still exist"
-          fi
-          
-          echo "Checking NAT Gateways..."
-          if aws ec2 describe-nat-gateways | grep "NatGatewayId"; then
-            echo "Warning: NAT Gateways still exist"
-          fi
-          
-          echo "Checking EIPs..."
-          if aws ec2 describe-addresses | grep "AllocationId"; then
-            echo "Warning: EIPs still exist"
-          fi
+          aws s3 cp verification-${TIMESTAMP}.log \
+          s3://ofurmaniuk/terraform-project/destroy-logs/verification-${TIMESTAMP}.log
 
       - name: Cleanup Local Files
         if: always()
