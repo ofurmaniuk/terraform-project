@@ -55,20 +55,19 @@ jobs:
       - uses: terraform-linters/setup-tflint@v3
       - run: tflint --init
       
-      - name: Run TFLint with logging
+      - name: Run TFLint and upload to S3
         run: |
-          tflint --format json > tflint-results.json
-          tflint -f compact | tee tflint-output.txt
+          # Create timestamp for unique log files
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          
+          # Run TFLint and save outputs
+          tflint --format json | tee tflint-${TIMESTAMP}.json
+          tflint -f compact | tee tflint-${TIMESTAMP}.log
+          
+          # Upload to same bucket as tfstate, different prefix
+          aws s3 cp tflint-${TIMESTAMP}.json s3://ofurmaniuk/terraform-project/lint-logs/tflint-${TIMESTAMP}.json
+          aws s3 cp tflint-${TIMESTAMP}.log s3://ofurmaniuk/terraform-project/lint-logs/tflint-${TIMESTAMP}.log
         continue-on-error: true
-
-      - name: Upload TFLint results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: tflint-results
-          path: |
-            tflint-results.json
-            tflint-output.txt
 
   preparation:
     needs: lint
