@@ -18,9 +18,18 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
 YAML
 
-  depends_on = [helm_release.argocd]
+  depends_on = [
+    helm_release.argocd,
+    helm_release.ingress_nginx,
+    kubernetes_namespace.argocd
+  ]
+
+  wait = true
+  server_side_apply = true
 }
 
 resource "kubectl_manifest" "argocd_api" {
@@ -43,7 +52,16 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
 YAML
 
-  depends_on = [helm_release.argocd]
+  depends_on = [
+    helm_release.argocd,
+    helm_release.ingress_nginx,
+    kubernetes_namespace.argocd
+  ]
+
+  wait = true
+  server_side_apply = true
 }
