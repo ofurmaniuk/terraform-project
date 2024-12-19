@@ -4,24 +4,20 @@ metadata:
   name: web-deployment
   namespace: production
 spec:
-  # ... existing specs ...
+  replicas: 1
+  selector:           # Add this
+    matchLabels:
+      app: web
   template:
+    metadata:
+      labels:        # Add this 
+        app: web
     spec:
-      initContainers:
-      - name: fix-path
-        image: busybox:stable
-        command: ['sh', '-c']
-        args:
-          - cp -r /usr/src/app/src/bin /usr/src/app/ && chmod +x /usr/src/app/bin/www
-        volumeMounts:
-          - name: app-files
-            mountPath: /usr/src/app
       containers:
         - name: web
-          # ... existing container specs ...
-          volumeMounts:
-            - name: app-files
-              mountPath: /usr/src/app
-      volumes:
-        - name: app-files
-          emptyDir: {}
+          image: ofurmaniuk/app-web:latest  # Ensure image exists in your registry
+          ports:
+            - containerPort: 4000
+          envFrom:
+            - configMapRef:
+                name: web-config
