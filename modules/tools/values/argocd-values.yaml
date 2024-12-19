@@ -1,7 +1,17 @@
 server:
+  extraArgs:
+    - --insecure
   service:
     type: LoadBalancer
   ingress:
     enabled: true
-dex:
-  enabled: false
+    annotations:
+      kubernetes.io/ingress.class: nginx
+configs:
+  secret:
+    argocdServerAdminPassword: "$2a$10$jUxUuXsIRqR0dPfWZ0qyQuY6NDPXPioX1x4XeS8x2j5gkV4ZS5qyy"
+repoServer:
+  serviceAccount:
+    create: true
+applicationSet:
+  enabled: true

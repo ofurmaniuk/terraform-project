@@ -27,7 +27,13 @@ resource "helm_release" "argocd" {
     file("${path.module}/values/argocd-values.yaml")
   ]
 
-  depends_on = [kubernetes_namespace.argocd]
+  depends_on = [
+    helm_release.ingress_nginx,
+    kubernetes_namespace.argocd
+  ]
+  wait         = true
+  wait_for_jobs = true
+  timeout      = 600
 }
 
 resource "helm_release" "prometheus" {
