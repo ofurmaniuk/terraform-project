@@ -4,22 +4,19 @@ metadata:
   name: api-deployment
   namespace: production
 spec:
+  selector:
+    matchLabels:    # This was missing
+      app: api
   template:
+    metadata:
+      labels:       # This was missing
+        app: api    
     spec:
-      initContainers:
-      - name: fix-path
-        image: busybox:stable
-        command: ['sh', '-c']
-        args:
-          - cp -r /usr/src/app/src/bin /usr/src/app/ && chmod +x /usr/src/app/bin/www
-        volumeMounts:
-          - name: app-files
-            mountPath: /usr/src/app
       containers:
-      - name: api
-        volumeMounts:
-          - name: app-files
-            mountPath: /usr/src/app
-      volumes:
-        - name: app-files
-          emptyDir: {}
+        - name: api
+          image: ofurmaniuk/app-api:latest  # This was missing/wrong
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: api-config
