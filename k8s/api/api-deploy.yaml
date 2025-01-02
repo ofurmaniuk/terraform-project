@@ -4,19 +4,42 @@ metadata:
   name: api-deployment
   namespace: production
 spec:
+  replicas: 1
   selector:
-    matchLabels:    # This was missing
+    matchLabels:
       app: api
   template:
     metadata:
-      labels:       # This was missing
-        app: api    
+      labels:
+        app: api
     spec:
       containers:
         - name: api
-          image: ofurmaniuk/app-api:latest  # This was missing/wrong
+          image: ofurmaniuk/app-api:latest 
+          command: ["node"]
+          args: ["./src/bin/www"]
           ports:
             - containerPort: 3000
           envFrom:
             - configMapRef:
                 name: api-config
+          readinessProbe:
+            httpGet:
+              path: /api/status
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/status
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+              
