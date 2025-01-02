@@ -98,6 +98,10 @@ jobs:
           context: ./apps/web
           push: true
           tags: ofurmaniuk/app-web:latest,ofurmaniuk/app-web:${{ github.sha }}
+          file: ./apps/web/Dockerfile
+          build-args: |
+            PORT=4000
+            API_HOST=http://api-service
 
   image-scan:
     needs: build
