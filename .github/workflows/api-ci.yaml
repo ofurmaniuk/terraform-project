@@ -98,6 +98,14 @@ jobs:
          context: ./apps/api
          push: true
          tags: ofurmaniuk/app-api:latest,ofurmaniuk/app-api:${{ github.sha }}
+         file: ./apps/api/Dockerfile
+         build-args: |
+           PORT=3000
+           DB=mydatabase  
+           DBUSER=dbadmin
+           DBPASS=password
+           DBHOST=production-aurora-cluster.cluster-cdpxotwegnsy.us-east-2.rds.amazonaws.com
+           DBPORT=5432
 
  image-scan:
    needs: build
