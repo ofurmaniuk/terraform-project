@@ -16,8 +16,6 @@ spec:
       containers:
         - name: web
           image: ofurmaniuk/app-web:latest
-          command: ["node"]
-          args: ["./src/bin/www"]  
           ports:
             - containerPort: 4000
           envFrom:
