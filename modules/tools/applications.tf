@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/ofurmaniuk/terraform-project.git
-    path: k8s/web
+    path: apps/web
     targetRevision: main
   destination:
     server: https://kubernetes.default.svc
@@ -43,7 +43,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/ofurmaniuk/terraform-project.git
-    path: k8s/api
+    path: apps/api
     targetRevision: main
   destination:
     server: https://kubernetes.default.svc
