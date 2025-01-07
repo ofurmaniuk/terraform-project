@@ -19,19 +19,4 @@ locals {
       enabled = false
     }
   }
-
-  prometheus_values = {
-    alertmanager = {
-      persistentVolume = {
-        enabled = true
-        size = "10Gi"
-      }
-    }
-    server = {
-      persistentVolume = {
-        enabled = true
-        size = "50Gi"
-      }
-    }
-  }
 }
