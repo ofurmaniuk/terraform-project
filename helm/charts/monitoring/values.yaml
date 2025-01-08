@@ -15,6 +15,7 @@ kube-prometheus-stack:
     persistence:
       enabled: true
       size: 2Gi
+      storageClassName: gp2
     resources:
       limits:
         cpu: 200m
