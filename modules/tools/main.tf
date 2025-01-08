@@ -23,10 +23,10 @@ resource "helm_release" "argocd" {
   version    = "5.46.7"
   namespace  = kubernetes_namespace.argocd.metadata[0].name
 
-  values = [
-    file("${path.module}/values/argocd-values.yaml")
-  ]
-
+  
+# values = [
+#     file("${path.module}/values/argocd-values.yaml")
+#   ]
   depends_on = [
     helm_release.ingress_nginx,
     kubernetes_namespace.argocd
