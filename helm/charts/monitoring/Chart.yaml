@@ -1,3 +1,4 @@
+# Chart.yaml
 apiVersion: v2
 name: monitoring
 description: Monitoring stack with Prometheus and Grafana

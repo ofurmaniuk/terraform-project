@@ -1,6 +1,17 @@
+# values.yaml
 kube-prometheus-stack:
   grafana:
     enabled: true
+    ingress:
+      enabled: true
+      ingressClassName: nginx
+      annotations: 
+        nginx.ingress.kubernetes.io/ssl-redirect: "false"
+      hosts:
+        - host: grafana.yourdomain.com
+          paths:
+            - path: /
+              pathType: Prefix
     persistence:
       enabled: true
       size: 2Gi
