@@ -6,9 +6,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/ofurmaniuk/terraform-project  
+    repoURL: https://github.com/ofurmaniuk/terraform-project
     targetRevision: HEAD
-    path: helm/charts/monitoring  
+    path: helm/charts/monitoring
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
@@ -18,5 +18,3 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-
- 

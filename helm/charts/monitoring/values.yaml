@@ -1,70 +1,71 @@
-grafana:
-  enabled: true
-  persistence:
+kube-prometheus-stack:
+  grafana:
     enabled: true
-    size: 2Gi
-  resources:
-    limits:
-      cpu: 200m
-      memory: 256Mi
-    requests:
-      cpu: 100m
-      memory: 128Mi
-  datasources:
-    datasources.yaml:
-      apiVersion: 1
-      datasources:
-        - name: Prometheus
-          type: prometheus
-          url: http://prometheus-operated.monitoring:9090
-          isDefault: true
-  dashboardProviders:
-    dashboardproviders.yaml:
-      apiVersion: 1
-      providers:
-        - name: 'default'
-          orgId: 1
-          folder: ''
-          type: file
-          disableDeletion: false
-          editable: true
-          options:
-            path: /var/lib/grafana/dashboards
-  dashboards:
-    default:
-      kubernetes:
-        gnetId: 315
-        revision: 3
-        datasource: Prometheus
-      node-exporter:
-        gnetId: 1860
-        revision: 27
-        datasource: Prometheus
-
-prometheus:
-  prometheusSpec:
-    retention: 5d
+    persistence:
+      enabled: true
+      size: 2Gi
     resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
       requests:
         cpu: 100m
-        memory: 256Mi
-      limits:
-        cpu: 300m
-        memory: 512Mi
-    storageSpec:
-      volumeClaimTemplate:
-        spec:
-          accessModes: ["ReadWriteOnce"]
-          resources:
-            requests:
-              storage: 10Gi
+        memory: 128Mi
+    datasources:
+      datasources.yaml:
+        apiVersion: 1
+        datasources:
+          - name: Prometheus
+            type: prometheus
+            url: http://prometheus-operated.monitoring:9090
+            isDefault: true
+    dashboardProviders:
+      dashboardproviders.yaml:
+        apiVersion: 1
+        providers:
+          - name: 'default'
+            orgId: 1
+            folder: ''
+            type: file
+            disableDeletion: false
+            editable: true
+            options:
+              path: /var/lib/grafana/dashboards
+    dashboards:
+      default:
+        kubernetes:
+          gnetId: 315
+          revision: 3
+          datasource: Prometheus
+        node-exporter:
+          gnetId: 1860
+          revision: 27
+          datasource: Prometheus
 
-alertmanager:
-  alertmanagerSpec:
-    storage:
-      volumeClaimTemplate:
-        spec:
-          accessModes: ["ReadWriteOnce"]
-          resources:
-            requests:
-              storage: 5Gi
+  prometheus:
+    prometheusSpec:
+      retention: 5d
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 300m
+          memory: 512Mi
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 10Gi
+
+  alertmanager:
+    alertmanagerSpec:
+      storage:
+        volumeClaimTemplate:
+          spec:
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 5Gi
