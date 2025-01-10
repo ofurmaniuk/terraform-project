@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/ofurmaniuk/terraform-project.git
     path: helm/charts/aws-ebs-csi-driver
-    targetRevision: app
+    targetRevision: main
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-system
