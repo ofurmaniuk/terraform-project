@@ -1,4 +1,14 @@
 grafana:
+  service:
+    type: LoadBalancer
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-type: nlb
+      service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+      service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+    ports:
+      - port: 80
+        targetPort: 3000
+        protocol: TCP
   enabled: true
   persistence:
     enabled: true
