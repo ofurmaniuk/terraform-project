@@ -29,6 +29,29 @@ resource "aws_iam_role" "eks_node_group" {
   tags = local.common_tags
 }
 
+resource "aws_iam_role_policy" "eks_node_ebs" {
+  name = "${var.environment}-eks-node-ebs"
+  role = aws_iam_role.eks_node_group.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:CreateVolume",
+          "ec2:AttachVolume",
+          "ec2:DeleteVolume",
+          "ec2:DetachVolume",
+          "ec2:DescribeVolumes",
+          "ec2:DescribeVolumesModifications"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 # IAM Role Policies
 resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
