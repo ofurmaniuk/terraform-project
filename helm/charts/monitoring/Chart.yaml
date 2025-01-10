@@ -1,9 +1,11 @@
-# Chart.yaml
 apiVersion: v2
 name: monitoring
-description: Monitoring stack with Prometheus and Grafana
+description: Monitoring stack with individual Prometheus and Grafana deployments
 version: 0.1.0
 dependencies:
-  - name: kube-prometheus-stack
-    version: 48.3.1
+  - name: prometheus
+    version: 25.3.0
     repository: https://prometheus-community.github.io/helm-charts
+  - name: grafana 
+    version: 6.58.8
+    repository: https://grafana.github.io/helm-charts
