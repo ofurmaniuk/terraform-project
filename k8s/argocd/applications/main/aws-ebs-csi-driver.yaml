@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/ofurmaniuk/terraform-project
+    repoURL: https://github.com/ofurmaniuk/terraform-project.git
     path: helm/charts/aws-ebs-csi-driver
     targetRevision: app
   destination:
