@@ -44,7 +44,9 @@ resource "aws_iam_role_policy" "eks_node_ebs" {
           "ec2:DeleteVolume",
           "ec2:DetachVolume",
           "ec2:DescribeVolumes",
-          "ec2:DescribeVolumesModifications"
+          "ec2:DescribeVolumesModifications",
+          "ec2:CreateTags",          
+          "ec2:DeleteTags"           
         ]
         Resource = "*"
       }

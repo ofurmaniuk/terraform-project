@@ -12,14 +12,10 @@ grafana:
   persistence:
     enabled: true
     size: 2Gi
-    storageClassName: ebs-sc
+    storageClassName: gp2
+    volumeBindingMode: WaitForFirstConsumer
     accessModes:
       - ReadWriteOnce
-  ingress:
-    enabled: true
-    ingressClassName: nginx
-    annotations:
-      nginx.ingress.kubernetes.io/ssl-redirect: "false"
   resources:
     limits:
       cpu: 200m
@@ -33,7 +29,7 @@ grafana:
       datasources:
         - name: Prometheus
           type: prometheus
-          url: http://monitoring-prometheus-server:9090  # Updated to match Prometheus service name
+          url: http://prometheus-server:9090
           isDefault: true
   dashboardProviders:
     dashboardproviders.yaml:
@@ -49,25 +45,14 @@ grafana:
             path: /var/lib/grafana/dashboards
 
 prometheus:
-  alertmanager:
-    enabled: true
-    persistentVolume:
-      enabled: true
-      size: 5Gi
-      storageClassName: ebs-sc
-    resources:
-      limits:
-        cpu: 100m
-        memory: 256Mi
-      requests:
-        cpu: 50m
-        memory: 128Mi
   server:
-    retention: 5d
     persistentVolume:
       enabled: true
       size: 10Gi
-      storageClassName: ebs-sc
+      storageClassName: gp2
+      volumeBindingMode: WaitForFirstConsumer
+      accessModes:
+        - ReadWriteOnce
     resources:
       requests:
         cpu: 100m
@@ -75,7 +60,26 @@ prometheus:
       limits:
         cpu: 300m
         memory: 512Mi
+  
+  alertmanager:
+    enabled: true
+    persistentVolume:
+      enabled: true
+      size: 5Gi
+      storageClassName: gp2
+      volumeBindingMode: WaitForFirstConsumer
+      accessModes:
+        - ReadWriteOnce
+    resources:
+      limits:
+        cpu: 100m
+        memory: 256Mi
+      requests:
+        cpu: 50m
+        memory: 128Mi
+  
   pushgateway:
     enabled: true
+  
   nodeExporter:
     enabled: true
