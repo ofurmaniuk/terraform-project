@@ -1,4 +1,5 @@
 grafana:
+  # Keeping your original working Grafana config
   service:
     type: LoadBalancer
     annotations:
@@ -48,38 +49,32 @@ prometheus:
   server:
     persistentVolume:
       enabled: true
-      size: 10Gi
+      size: 2Gi
       storageClassName: gp2
-      volumeBindingMode: WaitForFirstConsumer
       accessModes:
         - ReadWriteOnce
+    service:
+      type: LoadBalancer
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: nlb
+        service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+        service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+      ports:
+        - name: http
+          port: 80
+          targetPort: 9090
+          protocol: TCP
+    podAnnotations:
+      cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+    securityContext:
+      fsGroup: 65534
+      runAsGroup: 65534
+      runAsNonRoot: true
+      runAsUser: 65534
     resources:
       requests:
-        cpu: 100m
+        cpu: 200m
         memory: 256Mi
       limits:
-        cpu: 300m
+        cpu: 500m
         memory: 512Mi
-  
-  alertmanager:
-    enabled: true
-    persistentVolume:
-      enabled: true
-      size: 5Gi
-      storageClassName: gp2
-      volumeBindingMode: WaitForFirstConsumer
-      accessModes:
-        - ReadWriteOnce
-    resources:
-      limits:
-        cpu: 100m
-        memory: 256Mi
-      requests:
-        cpu: 50m
-        memory: 128Mi
-  
-  pushgateway:
-    enabled: true
-  
-  nodeExporter:
-    enabled: true
