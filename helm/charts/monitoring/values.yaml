@@ -30,7 +30,8 @@ grafana:
       datasources:
         - name: Prometheus
           type: prometheus
-          url: http://prometheus-server:9090
+          url: http://monitoring-prometheus-server
+          access: proxy
           isDefault: true
   dashboardProviders:
     dashboardproviders.yaml:
