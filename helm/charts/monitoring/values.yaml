@@ -49,10 +49,11 @@ prometheus:
   server:
     persistentVolume:
       enabled: true
-      size: 2Gi
+      size: 10Gi
       storageClassName: gp2
       accessModes:
         - ReadWriteOnce
+
     service:
       type: LoadBalancer
       annotations:
@@ -60,17 +61,10 @@ prometheus:
         service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
         service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
       ports:
-        - name: http
-          port: 80
+        - port: 80
           targetPort: 9090
           protocol: TCP
-    podAnnotations:
-      cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
-    securityContext:
-      fsGroup: 65534
-      runAsGroup: 65534
-      runAsNonRoot: true
-      runAsUser: 65534
+
     resources:
       requests:
         cpu: 200m
@@ -78,3 +72,8 @@ prometheus:
       limits:
         cpu: 500m
         memory: 512Mi
+    enableServiceLinks: true
+    scrape_configs:
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
