@@ -93,7 +93,7 @@ loki:
     selfMonitoring:
       enabled: true  
     lokiCanary:
-      enabled: false
+      enabled: true
   gateway:
     enabled: false
   persistence:
