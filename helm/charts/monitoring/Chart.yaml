@@ -9,3 +9,9 @@ dependencies:
   - name: grafana
     version: "6.58.8"
     repository: "https://grafana.github.io/helm-charts"
+  - name: loki
+    version: "5.8.3"
+    repository: "https://grafana.github.io/helm-charts"
+  - name: promtail
+    version: "6.15.3"
+    repository: "https://grafana.github.io/helm-charts"

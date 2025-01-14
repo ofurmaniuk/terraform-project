@@ -1,5 +1,4 @@
 grafana:
-  # Keeping your original working Grafana config
   service:
     type: LoadBalancer
     annotations:
@@ -33,6 +32,10 @@ grafana:
           url: http://monitoring-prometheus-server
           access: proxy
           isDefault: true
+        - name: Loki
+          type: loki
+          url: http://monitoring-loki:3100
+          access: proxy
   dashboardProviders:
     dashboardproviders.yaml:
       apiVersion: 1
@@ -78,3 +81,36 @@ prometheus:
       - job_name: 'kubernetes-pods'
         kubernetes_sd_configs:
           - role: pod
+
+loki:
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClassName: gp2
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  serviceMonitor:
+    enabled: true
+
+promtail:
+  config:
+    logLevel: info
+    serverPort: 3101
+    clients:
+      - url: http://monitoring-loki:3100/loki/api/v1/push
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+  tolerations:
+    - effect: NoSchedule
+      operator: Exists          
+      

@@ -3,20 +3,12 @@ kind: Application
 metadata:
   name: monitoring
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
     repoURL: https://github.com/ofurmaniuk/terraform-project.git
     targetRevision: HEAD
     path: helm/charts/monitoring
-    helm:
-      valueFiles:
-        - values.yaml
-      parameters:
-        - name: grafana.service.annotations.service\.beta\.kubernetes\.io/aws-load-balancer-type
-          value: nlb
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
@@ -26,4 +18,3 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-      - ServerSideApply=true
