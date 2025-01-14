@@ -89,15 +89,10 @@ loki:
   memberlist:
     enabled: false
   mode: single
-  minio:
-    enabled: false
-  singleBinary:
-    enabled: true
-    replicas: 1
   monitoring:
-    lokiCanary:
-      enabled: false
     selfMonitoring:
+      enabled: true  
+    lokiCanary:
       enabled: false
   gateway:
     enabled: false
