@@ -83,31 +83,17 @@ prometheus:
 
 loki:
   enabled: true
-  isDefault: false
+  auth_enabled: false
   singleBinary:
-    enabled: true   
-  replicas: 1      
-  backend:         
-    enabled: false
-  read:
-    enabled: false
-  write:
-    enabled: false
-  service:
-    name: monitoring-loki
-  memberlist:
-    enabled: false
-  monitoring:
-    selfMonitoring:
-      enabled: true  
-    lokiCanary:
-      enabled: true
-  gateway:
-    enabled: false
+    enabled: true
+    replicas: 1
   persistence:
     enabled: true
     size: 10Gi
     storageClassName: gp2
+  monitoring:
+    lokiCanary:
+      enabled: true
   resources:
     limits:
       cpu: 200m
