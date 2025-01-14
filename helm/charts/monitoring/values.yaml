@@ -84,11 +84,19 @@ prometheus:
 loki:
   enabled: true
   isDefault: false
+  singleBinary:
+    enabled: true   
+  replicas: 1      
+  backend:         
+    enabled: false
+  read:
+    enabled: false
+  write:
+    enabled: false
   service:
     name: monitoring-loki
   memberlist:
     enabled: false
-  mode: single
   monitoring:
     selfMonitoring:
       enabled: true  
