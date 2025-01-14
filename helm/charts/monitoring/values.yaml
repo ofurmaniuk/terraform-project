@@ -99,10 +99,33 @@ loki:
     size: 10Gi
     storageClassName: gp2
   config:
-    storage:
-      type: filesystem  
+    common:
+      ring:
+        kvstore:
+          store: memberlist
+      storage:
+        filesystem:
+          chunks_directory: /var/loki/chunks
+          rules_directory: /var/loki/rules
     memberlist:
-      join_members: ["loki-headless.monitoring.svc.cluster.local"]
+      join_members: 
+        - monitoring-loki-headless.monitoring.svc.cluster.local
+    storage:
+      type: filesystem
+    ruler:
+      storage:
+        type: local
+        local:
+          directory: /var/loki/rules
+    schema_config:
+      configs:
+        - from: 2020-05-15
+          store: boltdb-shipper
+          object_store: filesystem
+          schema: v11
+          index:
+            prefix: index_
+            period: 24h
 
 promtail:
   enabled: true
@@ -116,6 +139,9 @@ promtail:
   config:
     clients:
       - url: http://monitoring-loki:3100/loki/api/v1/push
+        tenant_id: default
     snippets:
       pipelineStages:
         - docker: {}
+    positions:
+      filename: /run/promtail/positions.yaml
