@@ -87,25 +87,22 @@ loki:
   singleBinary:
     enabled: true
     replicas: 1
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "256Mi"
+      limits:
+        cpu: "1000m"
+        memory: "1Gi"
   persistence:
     enabled: true
     size: 10Gi
     storageClassName: gp2
-  monitoring:
-    lokiCanary:
-      enabled: true
-  resources:
-    limits:
-      cpu: 200m
-      memory: 256Mi
-    requests:
-      cpu: 100m
-      memory: 128Mi
-  service:
-    type: ClusterIP  
-    targetPort: 3100
-    annotations: {}  
-    labels: {}      
+  config:
+    storage:
+      type: filesystem  
+    memberlist:
+      join_members: ["loki-headless.monitoring.svc.cluster.local"]
 
 promtail:
   enabled: true
