@@ -83,6 +83,25 @@ prometheus:
           - role: pod
 
 loki:
+  enabled: true
+  isDefault: true
+  image:
+    repository: grafana/loki
+  memberlist:
+    enabled: false
+  mode: single              # Key setting for single binary
+  minio:
+    enabled: false
+  singleBinary:
+    enabled: true          # Explicitly enable single binary
+    replicas: 1           
+  monitoring:
+    lokiCanary:
+      enabled: false       # Disable canary
+    selfMonitoring:
+      enabled: false       # Disable self monitoring
+  gateway:
+    enabled: false         # Disable gateway
   persistence:
     enabled: true
     size: 10Gi
@@ -94,23 +113,9 @@ loki:
     requests:
       cpu: 100m
       memory: 128Mi
-  serviceMonitor:
-    enabled: true
 
 promtail:
+  enabled: true
   config:
-    logLevel: info
-    serverPort: 3101
     clients:
-      - url: http://monitoring-loki:3100/loki/api/v1/push
-  resources:
-    limits:
-      cpu: 100m
-      memory: 128Mi
-    requests:
-      cpu: 50m
-      memory: 64Mi
-  tolerations:
-    - effect: NoSchedule
-      operator: Exists          
-      
+      - url: http://loki:3100/loki/api/v1/push
