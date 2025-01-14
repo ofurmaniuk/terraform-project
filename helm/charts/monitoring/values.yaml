@@ -101,6 +101,11 @@ loki:
     requests:
       cpu: 100m
       memory: 128Mi
+  service:
+    type: ClusterIP  
+    targetPort: 3100
+    annotations: {}  
+    labels: {}      
 
 promtail:
   enabled: true
