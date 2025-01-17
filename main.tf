@@ -32,6 +32,12 @@ module "eks" {
   public_subnet_ids  = module.vpc.public_subnets
 }
 
+data "aws_eks_cluster_status" "cluster_status" {
+  name = module.eks.cluster_name
+  depends_on = [module.eks]
+}
+
+
 
 module "tools" {
   source = "./modules/tools"
@@ -47,6 +53,7 @@ module "tools" {
   }
 
   depends_on = [
-    module.eks  
+    module.eks,
+    data.aws_eks_cluster_status.cluster_status
   ]
 }
