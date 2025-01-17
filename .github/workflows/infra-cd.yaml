@@ -57,14 +57,9 @@ jobs:
       
       - name: Run TFLint and upload to S3
         run: |
-          # Create timestamp for unique log files
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-          
-          # Run TFLint and save outputs
           tflint --format json | tee tflint-${TIMESTAMP}.json
           tflint -f compact | tee tflint-${TIMESTAMP}.log
-          
-          # Upload to same bucket as tfstate, different prefix
           aws s3 cp tflint-${TIMESTAMP}.json s3://ofurmaniuk/terraform-project/lint-logs/tflint-${TIMESTAMP}.json
           aws s3 cp tflint-${TIMESTAMP}.log s3://ofurmaniuk/terraform-project/lint-logs/tflint-${TIMESTAMP}.log
         continue-on-error: true
@@ -137,15 +132,52 @@ jobs:
       
       - name: Initialize Terraform
         run: terraform init
-      
-      - name: Apply Infrastructure
-        id: apply
-        run: terraform apply -auto-approve
-      
+
+      - name: Create VPC and Networking
+        run: |
+          terraform apply -target=module.vpc -auto-approve
+          echo "Waiting for VPC resources to be ready..."
+          sleep 30
+
+      - name: Create EKS Cluster
+        run: |
+          terraform apply -target=module.eks.aws_eks_cluster.main -auto-approve
+          echo "Waiting for EKS cluster to be ready..."
+          sleep 90
+
+      - name: Create Node Group
+        run: |
+          terraform apply -target=module.eks.aws_eks_node_group.main -auto-approve
+          echo "Waiting for node group to be ready..."
+          sleep 90
+
+      - name: Configure kubectl
+        run: |
+          aws eks update-kubeconfig --name $(terraform output -raw eks_cluster_name) --region ${{ env.AWS_REGION }}
+          kubectl get nodes
+          sleep 30
+
+      - name: Create RDS Instance
+        run: |
+          terraform apply -target=module.rds -auto-approve
+          echo "Waiting for RDS to be ready..."
+          sleep 60
+
+      - name: Deploy Tools and Applications
+        run: |
+          terraform apply -auto-approve
+          
       - name: Verify Infrastructure
         run: |
-          # Check EKS cluster status
-          aws eks describe-cluster --name production-cluster --query 'cluster.status' || exit 1
+          echo "Verifying EKS Cluster..."
+          aws eks describe-cluster --name $(terraform output -raw eks_cluster_name) --query 'cluster.status' || exit 1
           
-          # Check RDS status
+          echo "Verifying Node Group..."
+          kubectl wait --for=condition=ready nodes --all --timeout=300s || exit 1
+          
+          echo "Verifying ArgoCD Installation..."
+          kubectl get namespace argocd || exit 1
+          kubectl -n argocd wait --for=condition=available deployment/argocd-server --timeout=300s || exit 1
+          
+          echo "Verifying RDS..."
           aws rds describe-db-clusters --query 'DBClusters[?DBClusterIdentifier==`production-aurora-cluster`].Status' || exit 1
