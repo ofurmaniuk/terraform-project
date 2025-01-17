@@ -151,11 +151,15 @@ jobs:
           echo "Waiting for node group to be ready..."
           sleep 90
 
+          - name: Get Cluster Name
+          id: cluster-name
+          run: echo "CLUSTER_NAME=$(terraform output -raw eks_cluster_name)" >> $GITHUB_ENV
+  
       - name: Configure kubectl
         run: |
-          aws eks update-kubeconfig --name $(terraform output -raw eks_cluster_name) --region ${{ env.AWS_REGION }}
-          kubectl get nodes
-          sleep 30
+            aws eks update-kubeconfig --name "${{ env.CLUSTER_NAME }}" --region ${{ env.AWS_REGION }}
+            kubectl get nodes
+            sleep 30
 
       - name: Create RDS Instance
         run: |
