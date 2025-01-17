@@ -35,12 +35,18 @@ module "eks" {
 
 module "tools" {
   source = "./modules/tools"
-
-  environment            = var.environment
-  cluster_endpoint      = module.eks.cluster_endpoint
+  
+  environment = var.environment
+  cluster_endpoint = module.eks.cluster_endpoint
   cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
 
+  providers = {
+    kubernetes = kubernetes
+    helm = helm
+    kubectl = kubectl
+  }
+
   depends_on = [
-    module.eks
+    module.eks.aws_eks_cluster.main  
   ]
 }
