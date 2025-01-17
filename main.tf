@@ -47,6 +47,6 @@ module "tools" {
   }
 
   depends_on = [
-    module.eks.aws_eks_cluster.main  
+    module.eks  
   ]
 }
