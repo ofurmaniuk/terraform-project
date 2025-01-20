@@ -12,7 +12,7 @@ resource "helm_release" "ingress_nginx" {
   }
 
   depends_on = [
-    kubernetes_namespace.argocd
+    kubectl_manifest.argocd_namespace  
   ]
 }
 
