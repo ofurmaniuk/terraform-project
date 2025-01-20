@@ -3,12 +3,23 @@ resource "time_sleep" "wait_for_kubernetes" {
   create_duration = "60s"
 }
 
-resource "kubernetes_namespace" "argocd" {
-  depends_on = [time_sleep.wait_for_kubernetes]
-  metadata {
-    name = "argocd"
-    labels = {
-      name = "argocd"
-    }
+resource "kubectl_manifest" "argocd_namespace" {
+  yaml_body = <<YAML
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd
+  labels:
+    name: argocd
+    environment: ${var.environment}
+    managed-by: terraform
+YAML
+
+  override_namespace = "argocd"
+  force_new         = false
+  server_side_apply = true
+
+  lifecycle {
+    ignore_changes = all
   }
 }
