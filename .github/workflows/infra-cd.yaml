@@ -150,45 +150,42 @@ jobs:
             terraform apply -target=module.eks.aws_eks_node_group.main -auto-approve
             echo "Waiting for node group to be ready..."
             
-            # Get cluster name without quotes and extra characters
-            CLUSTER_NAME="production-cluster"
-            
-            echo "Waiting for node group on cluster: ${CLUSTER_NAME}"
+            echo "Checking node group readiness..."
             aws eks wait nodegroup-active \
-              --cluster-name "${CLUSTER_NAME}" \
-              --nodegroup-name "production-node-group" \
+              --cluster-name production-cluster \
+              --nodegroup-name production-node-group \
               --region ${{ env.AWS_REGION }}
-
+  
       - name: Configure kubectl
         run: |
-          aws eks update-kubeconfig --name "${{ env.CLUSTER_NAME }}" --region ${{ env.AWS_REGION }}
-          kubectl get nodes
-          
-          # Wait for nodes to be ready
-          kubectl wait --for=condition=ready nodes --all --timeout=300s
-          sleep 30
-
+            aws eks update-kubeconfig --name production-cluster --region ${{ env.AWS_REGION }}
+            kubectl get nodes
+            
+            # Wait for nodes to be ready
+            kubectl wait --for=condition=ready nodes --all --timeout=300s
+            sleep 30
+  
       - name: Create RDS Instance
         run: |
-          terraform apply -target=module.rds -auto-approve
-          echo "Waiting for RDS to be ready..."
-          sleep 60
-
+            terraform apply -target=module.rds -auto-approve
+            echo "Waiting for RDS to be ready..."
+            sleep 60
+  
       - name: Deploy Tools and Applications
         run: |
-          terraform apply -auto-approve
-          
+            terraform apply -auto-approve
+            
       - name: Verify Infrastructure
         run: |
-          echo "Verifying EKS Cluster..."
-          aws eks describe-cluster --name ${{ env.CLUSTER_NAME }} --query 'cluster.status' || exit 1
-          
-          echo "Verifying Node Group..."
-          kubectl wait --for=condition=ready nodes --all --timeout=300s || exit 1
-          
-          echo "Verifying ArgoCD Installation..."
-          kubectl get namespace argocd || exit 1
-          kubectl -n argocd wait --for=condition=available deployment/argocd-server --timeout=300s || exit 1
-          
-          echo "Verifying RDS..."
-          aws rds describe-db-clusters --query 'DBClusters[?DBClusterIdentifier==`production-aurora-cluster`].Status' || exit 1
+            echo "Verifying EKS Cluster..."
+            aws eks describe-cluster --name production-cluster --query 'cluster.status' || exit 1
+            
+            echo "Verifying Node Group..."
+            kubectl wait --for=condition=ready nodes --all --timeout=300s || exit 1
+            
+            echo "Verifying ArgoCD Installation..."
+            kubectl get namespace argocd || exit 1
+            kubectl -n argocd wait --for=condition=available deployment/argocd-server --timeout=300s || exit 1
+            
+            echo "Verifying RDS..."
+            aws rds describe-db-clusters --query 'DBClusters[?DBClusterIdentifier==`production-aurora-cluster`].Status' || exit 1    
