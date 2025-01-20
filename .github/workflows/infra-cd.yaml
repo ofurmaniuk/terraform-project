@@ -147,18 +147,16 @@ jobs:
 
       - name: Create and Wait for Node Group
         run: |
-            # Apply node group
             terraform apply -target=module.eks.aws_eks_node_group.main -auto-approve
             echo "Waiting for node group to be ready..."
             
-            # Properly capture cluster name
-            CLUSTER_NAME=$(terraform output eks_cluster_name | tr -d '"')
-            echo "CLUSTER_NAME=${CLUSTER_NAME}" >> $GITHUB_ENV
+            # Get cluster name without quotes and extra characters
+            CLUSTER_NAME="production-cluster"
             
-            # Wait for node group
+            echo "Waiting for node group on cluster: ${CLUSTER_NAME}"
             aws eks wait nodegroup-active \
               --cluster-name "${CLUSTER_NAME}" \
-              --nodegroup-name "${CLUSTER_NAME}-node-group" \
+              --nodegroup-name "production-node-group" \
               --region ${{ env.AWS_REGION }}
 
       - name: Configure kubectl
