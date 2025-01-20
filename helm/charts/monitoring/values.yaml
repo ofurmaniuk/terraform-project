@@ -1,4 +1,4 @@
-# helm/charts/monitoring/values.yaml
+# values.yaml
 grafana:
   service:
     type: LoadBalancer
@@ -14,16 +14,6 @@ grafana:
     enabled: true
     size: 2Gi
     storageClassName: gp2
-    volumeBindingMode: WaitForFirstConsumer
-    accessModes:
-      - ReadWriteOnce
-  resources:
-    limits:
-      cpu: 200m
-      memory: 256Mi
-    requests:
-      cpu: 100m
-      memory: 128Mi
   datasources:
     datasources.yaml:
       apiVersion: 1
@@ -37,18 +27,6 @@ grafana:
           type: loki
           url: http://monitoring-loki:3100
           access: proxy
-  dashboardProviders:
-    dashboardproviders.yaml:
-      apiVersion: 1
-      providers:
-        - name: 'default'
-          orgId: 1
-          folder: ''
-          type: file
-          disableDeletion: false
-          editable: true
-          options:
-            path: /var/lib/grafana/dashboards
 
 prometheus:
   server:
@@ -56,18 +34,8 @@ prometheus:
       enabled: true
       size: 10Gi
       storageClassName: gp2
-      accessModes:
-        - ReadWriteOnce
     service:
-      type: LoadBalancer
-      annotations:
-        service.beta.kubernetes.io/aws-load-balancer-type: nlb
-        service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
-        service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
-      ports:
-        - port: 80
-          targetPort: 9090
-          protocol: TCP
+      type: ClusterIP
     resources:
       requests:
         cpu: 200m
@@ -75,29 +43,27 @@ prometheus:
       limits:
         cpu: 500m
         memory: 512Mi
-    enableServiceLinks: true
-    scrape_configs:
-      - job_name: 'kubernetes-pods'
-        kubernetes_sd_configs:
-          - role: pod
 
 loki:
   enabled: true
-  auth_enabled: false
-  singleBinary:
-    enabled: true
-    replicas: 1
-  persistence:
-    enabled: true
-    size: 1Gi  
-    storageClassName: gp2
-  config:
-    replication_factor: 1  
+  loki:
+    auth_enabled: false
     storage:
       type: filesystem
-    memberlist:
-      join_members:
-        - loki-headless.monitoring.svc.cluster.local
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClassName: gp2
+    serviceMonitor:
+      enabled: true
+    structuredConfig:
+      common:
+        path_prefix: /var/loki
+        replication_factor: 1
+        storage:
+          filesystem:
+            chunks_directory: /var/loki/chunks
+            rules_directory: /var/loki/rules
 
 promtail:
   enabled: true
