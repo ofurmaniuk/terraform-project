@@ -1,4 +1,27 @@
 # values.yaml
+loki:
+  enabled: true
+  monolithic:
+    enabled: true
+    persistence:
+      enabled: true
+      size: 10Gi
+  auth_enabled: false
+  commonConfig:
+    path_prefix: /loki
+    replication_factor: 1
+  storageConfig:
+    type: "filesystem"
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+
+promtail:
+  enabled: true
+  config:
+    clients:
+      - url: http://monitoring-loki.monitoring.svc.cluster.local:3100/loki/api/v1/push
+
 grafana:
   service:
     type: LoadBalancer
@@ -6,10 +29,6 @@ grafana:
       service.beta.kubernetes.io/aws-load-balancer-type: nlb
       service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
       service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
-    ports:
-      - port: 80
-        targetPort: 3000
-        protocol: TCP
   persistence:
     enabled: true
     size: 2Gi
@@ -43,33 +62,3 @@ prometheus:
       limits:
         cpu: 500m
         memory: 512Mi
-
-loki:
-  enabled: true
-  loki:
-    auth_enabled: false
-    storage:
-      type: filesystem
-    persistence:
-      enabled: true
-      size: 10Gi
-      storageClassName: gp2
-    serviceMonitor:
-      enabled: true
-    structuredConfig:
-      common:
-        path_prefix: /var/loki
-        replication_factor: 1
-        storage:
-          filesystem:
-            chunks_directory: /var/loki/chunks
-            rules_directory: /var/loki/rules
-
-promtail:
-  enabled: true
-  config:
-    clients:
-      - url: http://monitoring-loki:3100/loki/api/v1/push
-    snippets:
-      pipelineStages:
-        - docker: {}
