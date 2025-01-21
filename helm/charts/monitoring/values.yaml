@@ -82,114 +82,88 @@ prometheus:
           - role: pod
 
 loki:
- enabled: true
- loki:
-   auth_enabled: false
-   singleBinary:
-     replicas: 2
-     extraArgs:
-       - -memberlist.bind-addr=0.0.0.0:7946
-   persistence:
-     enabled: true
-     size: 10Gi
-     storageClass: gp2
-   resources:
-     limits:
-       cpu: 1000m
-       memory: 1Gi
-     requests:
-       cpu: 200m
-       memory: 256Mi
-   containerSecurityContext:
-     runAsUser: 10001
-     runAsGroup: 10001
-     runAsNonRoot: true
-     capabilities:
-       drop:
-         - ALL
-     readOnlyRootFilesystem: true
-   livenessProbe:
-     httpGet:
-       path: /ready
-       port: http-metrics
-     initialDelaySeconds: 120
-     periodSeconds: 20
-   readinessProbe:
-     httpGet:
-       path: /ready
-       port: http-metrics
-     initialDelaySeconds: 90
-     periodSeconds: 20
-   structuredConfig:
-     server:
-       http_listen_port: 3100
-       grpc_listen_port: 9095
-       log_level: "info"
-     ingester:
-       lifecycler:
-         ring:
-           kvstore:
-             store: inmemory
-           replication_factor: 1
-       chunk_idle_period: 30m
-       chunk_retain_period: 15m
-       wal:
-         enabled: true
-         dir: /data/loki/wal
-     storage_config:
-       boltdb_shipper:
-         active_index_directory: /data/loki/index
-         cache_location: /data/loki/cache
-         shared_store: filesystem
-       filesystem:
-         directory: /data/loki/chunks
-     schema_config:
-       configs:
-         - from: "2023-01-01"
-           store: boltdb-shipper
-           object_store: filesystem
-           schema: v12
-           index:
-             prefix: index_
-             period: 24h
-     limits_config:
-       enforce_metric_name: false
-       reject_old_samples: true
-       reject_old_samples_max_age: 168h
-       ingestion_rate_mb: 10
-       ingestion_burst_size_mb: 20
-       max_global_streams_per_user: 5000
-       max_query_length: 721h
-     compactor:
-       working_directory: /data/loki/compactor
-       shared_store: filesystem
-       retention_enabled: true
-       retention_delete_delay: 2h
-       retention_delete_worker_count: 150
+  enabled: true
+  singleBinary:
+    enabled: true
+    replicas: 1
+  
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: gp2
+    accessModes:
+      - ReadWriteOnce
+  
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+  
+  containerSecurityContext:
+    runAsUser: 10001
+    runAsGroup: 10001
+    runAsNonRoot: true
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+
+  structuredConfig:
+    auth_enabled: false
+    server:
+      http_listen_port: 3100
+      grpc_listen_port: 9095
+      log_level: info
+    
+    storage:
+      type: filesystem
+      filesystem:
+        chunks_directory: /var/loki/chunks
+        rules_directory: /var/loki/rules
+    
+    schema_config:
+      configs:
+        - from: 2024-01-01
+          store: boltdb-shipper
+          object_store: filesystem
+          schema: v12
+          index:
+            period: 24h
+            prefix: index_
+    
+    limits_config:
+      retention_period: 168h
+      max_query_length: 721h
+      max_query_parallelism: 32
 
 promtail:
- enabled: true
- config:
-   serverPort: 3101
-   clients:
-     - url: http://{{ .Release.Name }}-loki:3100/loki/api/v1/push
-       tenant_id: anonymous
-       batchwait: 1s
-       batchsize: 102400
-       backoff_config:
-         minBackoff: 100ms
-         maxBackoff: 5s
-         maxRetries: 5
-   positions:
-     filename: /run/promtail/positions.yaml
-   scrape_configs:
-     - job_name: kubernetes-pods
-       kubernetes_sd_configs:
-         - role: pod
-       relabel_configs:
-         - source_labels: ['__meta_kubernetes_pod_label_app_kubernetes_io_name']
-           target_label: app
-         - source_labels: ['__meta_kubernetes_pod_label_app_kubernetes_io_component']
-           target_label: component
-         - source_labels: ['__meta_kubernetes_pod_node_name']
-           target_label: node
+  enabled: true
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  
+  config:
+    clients:
+      - url: http://{{ .Release.Name }}-loki:3100/loki/api/v1/push
+        batchsize: 102400
+        batchwait: 1s
+        timeout: 10s
+    
+    scrape_configs:
+      - job_name: kubernetes-pods
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: ['__meta_kubernetes_pod_label_app_kubernetes_io_name']
+            target_label: app
+          - source_labels: ['__meta_kubernetes_pod_node_name']
+            target_label: node_name
+          - source_labels: ['__meta_kubernetes_namespace']
+            target_label: namespace
