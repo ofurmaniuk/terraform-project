@@ -1,27 +1,4 @@
-# values.yaml
-loki:
-  enabled: true
-  monolithic:
-    enabled: true
-    persistence:
-      enabled: true
-      size: 10Gi
-  auth_enabled: false
-  commonConfig:
-    path_prefix: /loki
-    replication_factor: 1
-  storageConfig:
-    type: "filesystem"
-    filesystem:
-      chunks_directory: /loki/chunks
-      rules_directory: /loki/rules
-
-promtail:
-  enabled: true
-  config:
-    clients:
-      - url: http://monitoring-loki.monitoring.svc.cluster.local:3100/loki/api/v1/push
-
+# helm/charts/monitoring/values.yaml
 grafana:
   service:
     type: LoadBalancer
@@ -29,10 +6,24 @@ grafana:
       service.beta.kubernetes.io/aws-load-balancer-type: nlb
       service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
       service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+    ports:
+      - port: 80
+        targetPort: 3000
+        protocol: TCP
   persistence:
     enabled: true
     size: 2Gi
     storageClassName: gp2
+    volumeBindingMode: WaitForFirstConsumer
+    accessModes:
+      - ReadWriteOnce
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
   datasources:
     datasources.yaml:
       apiVersion: 1
@@ -46,6 +37,18 @@ grafana:
           type: loki
           url: http://monitoring-loki:3100
           access: proxy
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: 'default'
+          orgId: 1
+          folder: ''
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards
 
 prometheus:
   server:
@@ -53,8 +56,18 @@ prometheus:
       enabled: true
       size: 10Gi
       storageClassName: gp2
+      accessModes:
+        - ReadWriteOnce
     service:
-      type: ClusterIP
+      type: LoadBalancer
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: nlb
+        service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+        service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+      ports:
+        - port: 80
+          targetPort: 9090
+          protocol: TCP
     resources:
       requests:
         cpu: 200m
@@ -62,3 +75,194 @@ prometheus:
       limits:
         cpu: 500m
         memory: 512Mi
+    enableServiceLinks: true
+    scrape_configs:
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+
+loki:
+  enabled: true
+  singleBinary:
+    replicas: 1
+    extraArgs:
+      - -memberlist.bind-addr=0.0.0.0:7946
+
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - loki
+            topologyKey: "kubernetes.io/hostname"
+
+  livenessProbe:
+    httpGet:
+      path: /ready
+      port: http-metrics
+    initialDelaySeconds: 120
+    timeoutSeconds: 5
+    periodSeconds: 20
+    successThreshold: 1
+    failureThreshold: 6
+
+  readinessProbe:
+    httpGet:
+      path: /ready
+      port: http-metrics
+    initialDelaySeconds: 90
+    timeoutSeconds: 5
+    periodSeconds: 20
+    successThreshold: 1
+    failureThreshold: 6
+
+  service:
+    type: ClusterIP
+    name: monitoring-loki
+    port: 3100
+    targetPort: 3100
+    annotations: {}
+
+  containerSecurityContext:
+    runAsUser: 10001
+    runAsGroup: 10001
+    runAsNonRoot: true
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClass: gp2
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+
+  config:
+    auth_enabled: false
+    server:
+      http_listen_port: 3100
+      http_listen_address: "0.0.0.0"
+      grpc_listen_port: 9095
+      grpc_listen_address: "0.0.0.0"
+      log_level: "info"
+
+    ingester:
+      lifecycler:
+        address: "0.0.0.0"
+        ring:
+          kvstore:
+            store: inmemory
+          replication_factor: 1
+      chunk_idle_period: 30m
+      chunk_retain_period: 15m
+      wal:
+        dir: /data/loki/wal
+
+    storage_config:
+      boltdb_shipper:
+        active_index_directory: /data/loki/index
+        cache_location: /data/loki/boltdb-cache
+        shared_store: filesystem
+      filesystem:
+        directory: /data/loki/chunks
+
+    schema_config:
+      configs:
+        - from: "2020-10-24"
+          store: boltdb-shipper
+          object_store: filesystem
+          schema: v11
+          index:
+            prefix: index_
+            period: 24h
+
+    compactor:
+      shared_store: filesystem
+      working_directory: /data/loki/boltdb-shipper-compactor
+      retention_enabled: false
+
+    limits_config:
+      enforce_metric_name: false
+      reject_old_samples: true
+      reject_old_samples_max_age: 168h
+      max_entries_limit_per_query: 5000
+
+    table_manager:
+      retention_deletes_enabled: false
+      retention_period: 0s
+
+promtail:
+  enabled: true
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+  tolerations:
+    - operator: Exists
+
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - promtail
+            topologyKey: "kubernetes.io/hostname"
+
+  config:
+    server:
+      log_level: debug
+      http_listen_port: 3101
+
+    clients:
+      - url: http://monitoring-loki:3100/loki/api/v1/push
+        tenant_id: fake
+        external_labels:
+          cluster: eks
+          environment: monitoring
+        batchwait: "1s"
+        batchsize: 102400
+        timeout: "10s"
+        backoff_config:
+          min_period: "100ms"
+          max_period: "5s"
+
+    positions:
+      filename: /run/promtail/positions.yaml
+
+    scrape_configs:
+      - job_name: kubernetes-pods
+        pipeline_stages:
+          - cri: {}
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: ["__meta_kubernetes_pod_container_name"]
+            target_label: container
+          - source_labels: ["__meta_kubernetes_pod_name"]
+            target_label: pod
+          - source_labels: ["__meta_kubernetes_namespace"]
+            target_label: namespace
+          - source_labels: ["__meta_kubernetes_pod_node_name"]
+            target_label: node
