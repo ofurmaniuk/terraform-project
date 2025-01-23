@@ -6,6 +6,10 @@ grafana:
       service.beta.kubernetes.io/aws-load-balancer-type: nlb
       service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
       service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+    ports:
+      - port: 80
+        targetPort: 3000
+        protocol: TCP
   persistence:
     enabled: true
     size: 10Gi
@@ -17,7 +21,7 @@ grafana:
     requests:
       cpu: 500m
       memory: 512Mi
-  
+
 prometheus:
   alertmanager:
     enabled: true
@@ -31,6 +35,12 @@ prometheus:
       enabled: true
       size: 50Gi
       storageClassName: gp2
+    service:
+      type: LoadBalancer
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: nlb
+        service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+        service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
     resources:
       limits:
         cpu: 2000m
@@ -38,18 +48,17 @@ prometheus:
       requests:
         cpu: 1000m
         memory: 2Gi
-    strategy:
-      type: RollingUpdate
-    securityContext:
-      fsGroup: 65534
-      runAsGroup: 65534
-      runAsNonRoot: true
-      runAsUser: 65534
 
 loki:
   enabled: true
   singleBinary:
-    replicas: 2
+    enabled: true
+    replicas: 1
+  auth_enabled: false
+  limits_config:
+    enforce_metric_name: false
+    reject_old_samples: true
+    reject_old_samples_max_age: 168h
   persistence:
     enabled: true
     size: 50Gi
@@ -61,48 +70,9 @@ loki:
     requests:
       cpu: 500m
       memory: 1Gi
-  auth_enabled: false
-  config:
-    schema_config:
-      configs:
-        - from: 2023-01-01
-          store: boltdb-shipper
-          object_store: filesystem
-          schema: v12
-          index:
-            prefix: loki_index_
-            period: 24h
-    storage_config:
-      boltdb_shipper:
-        active_index_directory: /var/loki/index
-        cache_location: /var/loki/cache
-        shared_store: filesystem
-      filesystem:
-        directory: /var/loki/chunks
-    limits_config:
-      enforce_metric_name: false
-      reject_old_samples: true
-      reject_old_samples_max_age: 168h
-      max_entries_limit_per_query: 5000
-    compactor:
-      working_directory: /var/loki/compactor
-      shared_store: filesystem
-      compaction_interval: 10m
-    ruler:
-      storage:
-        type: local
-        local:
-          directory: /var/loki/rules
 
 promtail:
   enabled: true
-  resources:
-    limits:
-      cpu: 500m
-      memory: 512Mi
-    requests:
-      cpu: 200m
-      memory: 256Mi
   config:
     snippets:
       extraRelabelConfigs:
@@ -119,9 +89,10 @@ promtail:
           source_labels: [__meta_kubernetes_pod_container_name]
           target_label: container
     lokiAddress: http://monitoring-loki:3100/loki/api/v1/push
-  tolerations:
-    - operator: Exists
-  serviceMonitor:
-    enabled: true
-    namespace: monitoring
-    interval: 15s
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 256Mi
