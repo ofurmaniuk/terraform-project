@@ -29,6 +29,8 @@ resource "aws_iam_role" "eks_node_group" {
   tags = local.common_tags
 }
 
+data "aws_caller_identity" "current" {}
+
 resource "aws_iam_role_policy" "eks_node_ebs" {
   name = "${var.environment}-eks-node-ebs"
   role = aws_iam_role.eks_node_group.id
@@ -40,13 +42,28 @@ resource "aws_iam_role_policy" "eks_node_ebs" {
         Effect = "Allow"
         Action = [
           "ec2:CreateVolume",
+          "ec2:DeleteVolume", 
           "ec2:AttachVolume",
-          "ec2:DeleteVolume",
           "ec2:DetachVolume",
+          "ec2:ModifyVolume",
+          "ec2:CreateSnapshot",
+          "ec2:DeleteSnapshot",
+          "ec2:CreateTags"
+        ]
+        Resource = [
+          "arn:aws:ec2:us-east-2:${data.aws_caller_identity.current.account_id}:volume/*",
+          "arn:aws:ec2:us-east-2:${data.aws_caller_identity.current.account_id}:snapshot/*", 
+          "arn:aws:ec2:us-east-2:${data.aws_caller_identity.current.account_id}:instance/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "ec2:DescribeVolumes",
           "ec2:DescribeVolumesModifications",
-          "ec2:CreateTags",          
-          "ec2:DeleteTags"           
+          "ec2:DescribeSnapshots",
+          "ec2:DescribeTags",
+          "ec2:DescribeInstances"
         ]
         Resource = "*"
       }
