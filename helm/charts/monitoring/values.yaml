@@ -80,126 +80,80 @@ loki:
   singleBinary:
     enabled: true
     replicas: 1
+    extraArgs:
+      - --config.expand-env=true
+      - --config.file=/etc/loki/config/config.yaml
   persistence:
     enabled: true
     size: 10Gi
     storageClassName: gp2
   resources:
     limits:
-      cpu: 1000m
+      cpu: 1000m 
       memory: 2Gi
     requests:
       cpu: 500m
       memory: 1Gi
-  auth_enabled: false
-  commonConfig:
-    path_prefix: /loki
-    replication_factor: 1
-  storage:
-    type: filesystem
-  schemaConfig:
-    configs:
-      - from: "2023-01-01"
-        store: boltdb-shipper
-        object_store: filesystem
-        schema: v12
-        index:
-          prefix: index_
-          period: 24h
+  config:
+    auth_enabled: false
+    server:
+      http_listen_port: 3100
+      grpc_listen_port: 9095
+      log_level: info
+    ingester:
+      max_chunk_age: 1h
+      lifecycler:
+        ring:
+          kvstore:
+            store: inmemory
+          replication_factor: 1
+    storage:
+      type: filesystem
+    schema_config:
+      configs:
+        - from: "2020-10-24"
+          store: boltdb-shipper
+          object_store: filesystem
+          schema: v11
+          index:
+            prefix: index_
+            period: 24h
+    storage_config:
+      boltdb_shipper:
+        active_index_directory: /data/loki/index
+        cache_location: /data/loki/cache
+        shared_store: filesystem
 
 promtail:
- readinessProbe:
-   httpGet:
-     path: /ready
-     port: http
-   initialDelaySeconds: 30
-   periodSeconds: 10
-   timeoutSeconds: 5
-   failureThreshold: 3
- livenessProbe:
-   httpGet:
-     path: /ready 
-     port: http
-   initialDelaySeconds: 30
-   periodSeconds: 10
-   timeoutSeconds: 5
-   failureThreshold: 3
- enabled: true
- extraArgs:
-   - -client.external-labels=cluster=eks
- config:
-   server:
-     http_listen_port: 3101
-     grpc_listen_port: 0
-   
-   clients:
-     - url: http://monitoring-loki:3100/loki/api/v1/push
-       tenant_id: fake
-       external_labels:
-         cluster: eks
-       batchwait: "1s"
-       batchsize: 102400
-       timeout: "10s"
-       backoff_config:
-         min_period: "100ms"
-         max_period: "5s"
-
-   positions:
-     filename: /run/promtail/positions.yaml
-
-   scrape_configs:
-     - job_name: kubernetes-pods
-       pipeline_stages:
-         - cri: {}
-       kubernetes_sd_configs:
-         - role: pod
-       relabel_configs:
-         - source_labels: [__meta_kubernetes_pod_node_name]
-           target_label: node_name
-           action: replace
-         - source_labels: [__meta_kubernetes_namespace] 
-           target_label: namespace
-           action: replace
-         - source_labels: [__meta_kubernetes_pod_name]
-           target_label: pod
-           action: replace
-         - source_labels: [__meta_kubernetes_pod_container_name]
-           target_label: container
-           action: replace
-
-     - job_name: kubernetes-pods-static
-       static_configs:
-         - targets: 
-             - localhost
-           labels:
-             __path__: /var/log/pods/*/*.log
-
- daemonset:
-   enabled: true
-   tolerations:
-     - operator: Exists
-
- volumeMounts:
-   - name: pods-logs
-     mountPath: /var/log/pods
-   - name: container-logs
-     mountPath: /var/lib/docker/containers
-
- volumes:
-   - name: pods-logs
-     hostPath:
-       path: /var/log/pods
-   - name: container-logs
-     hostPath:
-       path: /var/lib/docker/containers
-
- resources:
-   limits:
-     cpu: 500m
-     memory: 512Mi
-   requests:
-     cpu: 200m
-     memory: 256Mi
-
- tolerations:
-   - operator: Exists
+  enabled: true
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+  serviceMonitor:
+    enabled: true
+  config:
+    server:
+      http_listen_port: 3101
+    clients:
+      - url: http://monitoring-loki.monitoring.svc:3100/loki/api/v1/push
+    positions:
+      filename: /run/promtail/positions.yaml
+    scrape_configs:
+      - job_name: kubernetes-pods
+        pipeline_stages:
+          - docker: {}
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_node_name]
+            target_label: node_name
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace  
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+          - source_labels: [__meta_kubernetes_container_name]
+            target_label: container
