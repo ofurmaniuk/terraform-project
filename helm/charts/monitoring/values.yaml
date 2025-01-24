@@ -83,10 +83,12 @@ loki:
     extraArgs:
       - --config.expand-env=true
       - --config.file=/etc/loki/config/config.yaml
+
   persistence:
     enabled: true
     size: 10Gi
     storageClassName: gp2
+
   resources:
     limits:
       cpu: 1000m 
@@ -94,38 +96,103 @@ loki:
     requests:
       cpu: 500m
       memory: 1Gi
-  config:
-    auth_enabled: false
-    server:
-      http_listen_port: 3100
-      grpc_listen_port: 9095
-      log_level: info
-    ingester:
-      max_chunk_age: 1h
-      lifecycler:
-        ring:
-          kvstore:
-            store: inmemory
-          replication_factor: 1
-    storage:
-      type: filesystem
-    schema_config:
-      configs:
-        - from: "2020-10-24"
-          store: boltdb-shipper
-          object_store: filesystem
-          schema: v11
-          index:
-            prefix: index_
-            period: 24h
-    storage_config:
-      boltdb_shipper:
-        active_index_directory: /data/loki/index
-        cache_location: /data/loki/cache
-        shared_store: filesystem
+
+  commonConfig:
+    replication_factor: 1
+    ring:
+      instance_addr: 127.0.0.1
+      kvstore:
+        store: inmemory
+
+  storage:
+    type: filesystem
+    chunks_directory: /data/loki/chunks
+    filesystem:
+      directory: /data/loki/chunks
+
+  schemaConfig:
+    configs:
+      - from: "2020-10-24"
+        store: boltdb-shipper
+        object_store: filesystem
+        schema: v11
+        index:
+          prefix: index_
+          period: 24h
+
+  storageConfig:
+    boltdb_shipper:
+      active_index_directory: /data/loki/index
+      cache_location: /data/loki/cache
+      shared_store: filesystem
+
+  limits_config:
+    ingestion_rate_mb: 10
+    ingestion_burst_size_mb: 20
+    max_global_streams_per_user: 5000
+    reject_old_samples: true
+    reject_old_samples_max_age: 168h
 
 promtail:
   enabled: true
+  config:
+    server:
+      http_listen_port: 3101
+    clients:
+      - url: http://{{ .Release.Name }}-loki:3100/loki/api/v1/push
+    positions:
+      filename: /run/promtail/positions.yaml
+    scrape_configs:
+      - job_name: kubernetes-pods
+        kubernetes_sd_configs:
+          - role: pod
+        pipeline_stages:
+          - cri: {}
+        relabel_configs:
+          - source_labels: 
+            - __meta_kubernetes_pod_node_name
+            target_label: node_name
+          - source_labels:
+            - __meta_kubernetes_namespace
+            target_label: namespace
+          - source_labels: 
+            - __meta_kubernetes_pod_name
+            target_label: pod
+          - source_labels:
+            - __meta_kubernetes_container_name
+            target_label: container
+          - action: replace
+            source_labels:
+              - __meta_kubernetes_pod_label_app_kubernetes_io_name
+            target_label: app
+          - action: drop
+            regex: ''
+            source_labels:
+              - app
+          - action: replace
+            source_labels:
+              - __meta_kubernetes_pod_label_app_kubernetes_io_component
+            target_label: component
+          - action: replace
+            replacement: $1
+            separator: /
+            source_labels:
+              - namespace
+              - app
+            target_label: job
+          - action: replace
+            source_labels:
+              - __meta_kubernetes_pod_name
+            target_label: instance
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - replacement: /var/log/pods/*$1/*.log
+            separator: /
+            source_labels:
+              - __meta_kubernetes_pod_uid
+              - __meta_kubernetes_pod_container_name
+            target_label: __path__
+
   resources:
     limits:
       cpu: 500m
@@ -133,27 +200,3 @@ promtail:
     requests:
       cpu: 200m
       memory: 256Mi
-  serviceMonitor:
-    enabled: true
-  config:
-    server:
-      http_listen_port: 3101
-    clients:
-      - url: http://monitoring-loki.monitoring.svc:3100/loki/api/v1/push
-    positions:
-      filename: /run/promtail/positions.yaml
-    scrape_configs:
-      - job_name: kubernetes-pods
-        pipeline_stages:
-          - docker: {}
-        kubernetes_sd_configs:
-          - role: pod
-        relabel_configs:
-          - source_labels: [__meta_kubernetes_pod_node_name]
-            target_label: node_name
-          - source_labels: [__meta_kubernetes_namespace]
-            target_label: namespace  
-          - source_labels: [__meta_kubernetes_pod_name]
-            target_label: pod
-          - source_labels: [__meta_kubernetes_container_name]
-            target_label: container
