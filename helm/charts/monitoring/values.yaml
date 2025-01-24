@@ -81,7 +81,7 @@ loki:
   write_enabled: true
   singleBinary:
     enabled: true
-    replicas: 1
+    replicas: 2
     extraArgs:
       - --config.expand-env=true
       - --config.file=/etc/loki/config/config.yaml
