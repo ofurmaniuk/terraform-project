@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://github.com/ofurmaniuk/terraform-project.git
     path: helm/charts/monitoring
-    targetRevision: master
+    targetRevision: main
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
