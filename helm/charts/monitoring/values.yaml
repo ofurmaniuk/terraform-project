@@ -77,11 +77,12 @@ prometheus:
 
 loki:
   enabled: true
-  auth_enabled: false
   singleBinary:
     enabled: true
-    replicas: 1  
-    
+    replicas: 1
+    extraArgs:
+      - --config.expand-env=true
+  
   persistence:
     enabled: true
     size: 10Gi
@@ -94,24 +95,31 @@ loki:
         store: inmemory
 
   storage:
-    type: filesystem
+    type: filesystem 
     filesystem:
       chunks_directory: /var/loki/chunks
       rules_directory: /var/loki/rules
 
+  resources:
+    limits:
+      cpu: 1000m 
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
 promtail:
   enabled: true
   config:
-    logLevel: info
-    serverPort: 3101
+    logLevel: debug
     clients:
-      - url: http://monitoring-loki:3100/loki/api/v1/push
-    positions:
-      filename: /run/promtail/positions.yaml
+      - url: http://monitoring-loki.monitoring:3100/loki/api/v1/push
     scrapeConfigs:
       - job_name: kubernetes-pods
         kubernetes_sd_configs:
           - role: pod
+        pipeline_stages:
+          - cri: {}
         relabel_configs:
           - source_labels: 
               - __meta_kubernetes_pod_node_name
