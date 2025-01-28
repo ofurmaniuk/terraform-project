@@ -27,7 +27,7 @@ variable "kubernetes_version" {
 variable "node_group_desired_size" {
   description = "Desired number of worker nodes"
   type        = number
-  default     = 2
+  default     = 3
 }
 
 variable "node_group_max_size" {
@@ -39,11 +39,11 @@ variable "node_group_max_size" {
 variable "node_group_min_size" {
   description = "Minimum number of worker nodes"
   type        = number
-  default     = 1
+  default     = 3
 }
 
 variable "node_group_instance_types" {
   description = "List of instance types for the node group"
   type        = list(string)
-  default     = ["t3.large"]
+  default     = ["t3.medium"]
 }
