@@ -87,66 +87,10 @@ grafana:
   adminUser: admin
   adminPassword: admin
 
-  grafana.ini:
-    server:
-      root_url: "%(protocol)s://%(domain)s/"
-    auth:
-      disable_login_form: false
-    security:
-      allow_embedding: true
-
 loki:
   enabled: true
-  loki:
-    auth_enabled: false
-    commonConfig:
-      path_prefix: /var/loki
-      replication_factor: 1
-      ring:
-        kvstore:
-          store: inmemory
-    
-    storage:
-      type: filesystem
-    
-    schemaConfig:
-      configs:
-        - from: "2020-10-24"
-          store: boltdb-shipper
-          object_store: filesystem
-          schema: v11
-          index:
-            prefix: index_
-            period: 24h
-    
-    storageConfig:
-      boltdb_shipper:
-        active_index_directory: /var/loki/index
-        cache_location: /var/loki/cache
-        shared_store: filesystem
-      filesystem:
-        directory: /var/loki/chunks
-    
-    compactor:
-      working_directory: /var/loki/compactor
-      shared_store: filesystem
-      retention_enabled: true
-      retention_delete_delay: 2h
-      retention_delete_worker_count: 150
-    
-    limits_config:
-      enforce_metric_name: false
-      reject_old_samples: true
-      reject_old_samples_max_age: 168h
-      max_entries_limit_per_query: 5000
-      ingestion_rate_mb: 10
-      ingestion_burst_size_mb: 20
-    
-    ruler:
-      storage:
-        type: local
-        local:
-          directory: /var/loki/rules
+  singleBinary:
+    replicas: 1
     
   persistence:
     enabled: true
@@ -161,56 +105,82 @@ loki:
       cpu: 200m
       memory: 256Mi
 
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          podAffinityTerm:
-            labelSelector:
-              matchExpressions:
-                - key: app.kubernetes.io/name
-                  operator: In
-                  values:
-                    - loki
-            topologyKey: "kubernetes.io/hostname"
+  monitoring:
+    serviceMonitor:
+      enabled: false
+    selfMonitoring:
+      enabled: false
+      grafanaAgent:
+        installOperator: false
 
-  service:
-    type: ClusterIP
-    port: 3100
-    annotations: {}
+  test:
+    enabled: false
+
+  loki:
+    auth_enabled: false
+    storage:
+      bucketNames:
+        chunks: chunks
+        ruler: ruler
+        admin: admin
+      type: filesystem
+    
+    structuredConfig:
+      analytics:
+        reporting_enabled: false
+      auth_enabled: false
+      chunk_store_config:
+        chunk_cache_config:
+          enabled: false
+        write_dedupe_cache_config:
+          enabled: false
+      common:
+        compactor_address: ''
+        path_prefix: /var/loki
+        replication_factor: 1
+        storage:
+          filesystem:
+            chunks_directory: /var/loki/chunks
+            rules_directory: /var/loki/rules
+      ingester:
+        lifecycler:
+          ring:
+            kvstore:
+              store: inmemory
+      limits_config:
+        max_cache_freshness_per_query: 10m
+        split_queries_by_interval: 15m
+      memberlist:
+        join_members:
+          - monitoring-loki
+      query_range:
+        align_queries_with_step: true
+        cache_results: true
+        max_retries: 5
+        results_cache:
+          cache:
+            enabled: false
+      schema_config:
+        configs:
+          - from: "2020-10-24"
+            store: boltdb-shipper
+            object_store: filesystem
+            schema: v11
+            index:
+              prefix: index_
+              period: 24h
 
 promtail:
   enabled: true
   config:
-    server:
-      log_level: info
-      http_listen_port: 3101
-
+    serverPort: 3101
     clients:
       - url: http://monitoring-loki:3100/loki/api/v1/push
-        tenant_id: fake
-        external_labels:
-          cluster: eks
-          environment: monitoring
-
+    snippets:
+      pipelineStages:
+        - cri: {}
     positions:
       filename: /run/promtail/positions.yaml
-
-    scrape_configs:
-      - job_name: kubernetes-pods
-        pipeline_stages:
-          - cri: {}
-        kubernetes_sd_configs:
-          - role: pod
-        relabel_configs:
-          - source_labels: ["__meta_kubernetes_pod_container_name"]
-            target_label: container
-          - source_labels: ["__meta_kubernetes_pod_name"]
-            target_label: pod
-          - source_labels: ["__meta_kubernetes_namespace"]
-            target_label: namespace
-          - source_labels: ["__meta_kubernetes_pod_node_name"]
-            target_label: node
 
   resources:
     limits:
@@ -223,15 +193,5 @@ promtail:
   tolerations:
     - operator: Exists
 
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          podAffinityTerm:
-            labelSelector:
-              matchExpressions:
-                - key: app.kubernetes.io/name
-                  operator: In
-                  values:
-                    - promtail
-            topologyKey: "kubernetes.io/hostname"
+  serviceMonitor:
+    enabled: false
