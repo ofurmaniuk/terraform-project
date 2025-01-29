@@ -1,68 +1,73 @@
-nameOverride: vault
-fullnameOverride: vault
+vault:
+  global:
+    enabled: true
+    tlsDisable: true
 
-injector:
-  enabled: true
-  replicas: 1
-  resources:
-    requests:
-      cpu: 25m
-      memory: 32Mi
-    limits:
-      cpu: 50m
-      memory: 64Mi
+  injector:
+    enabled: true
+    replicas: 1
+    resources:
+      requests:
+        cpu: 25m
+        memory: 32Mi
+      limits:
+        cpu: 50m
+        memory: 64Mi
 
-server:
-  image:
-    repository: "hashicorp/vault"
-    tag: "1.15.2"
-  
-  extraEnvironmentVars:
-    VAULT_ADDR: "http://127.0.0.1:8200"
-    VAULT_API_ADDR: "http://$(POD_IP):8200"
-  
-  dataStorage:
-    enabled: true
-    size: 2Gi
-    storageClass: gp2
-    accessMode: ReadWriteOnce
-  
-  ha:
-    enabled: false
-    
-  standalone:
-    enabled: true
-    config: |
-      ui = true
-      listener "tcp" {
-        tls_disable = 1
-        address = "[::]:8200"
-        cluster_address = "[::]:8201"
-      }
-      storage "file" {
-        path = "/vault/data"
-      }
-      service_registration "kubernetes" {}
-  
-  service:
-    enabled: true
-    type: ClusterIP  
-    port: 8200
-    
-  resources:
-    requests:
-      memory: 128Mi
-      cpu: 100m
-    limits:
-      memory: 256Mi
-      cpu: 200m
-  
-  auditStorage:
-    enabled: true
-    size: 1Gi
-    storageClass: gp2
-    accessMode: ReadWriteOnce
-  
+  server:
+    annotations:
+      avp.kubernetes.io/path: "secret/data/vault"
+    dataStorage:
+      enabled: true
+      size: 1Gi
+      storageClass: "gp2"
+      accessMode: ReadWriteOnce
+    standalone:
+      enabled: true
+      config: |
+        ui = true
+        listener "tcp" {
+          tls_disable = 1
+          address = "[::]:8200"
+          cluster_address = "[::]:8201"
+        }
+        storage "file" {
+          path = "/vault/data"
+        }
+        audit {
+          enabled = true
+          type    = "file"
+          options = {
+            file_path = "/vault/logs/audit.log"
+          }
+        }
+    service:
+      enabled: true
+      type: LoadBalancer
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+      port: 8200
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+    serviceAccount:
+      create: true
+      annotations:
+        eks.amazonaws.com/role-arn: arn:aws:iam::529088295850:role/develop-vault-role
+
+    extraEnvironmentVars:
+      VAULT_ADDR: "http://127.0.0.1:8200"
+      VAULT_API_ADDR: "http://127.0.0.1:8200"
+      VAULT_LOG_LEVEL: "debug"
+
   ui:
     enabled: true
-    serviceType: ClusterIP  
+    serviceType: LoadBalancer
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    externalPort: 8200
+    targetPort: 8200

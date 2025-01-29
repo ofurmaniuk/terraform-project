@@ -11,12 +11,6 @@ spec:
     repoURL: https://github.com/ofurmaniuk/terraform-project.git
     path: helm/charts/vault
     targetRevision: main
-    helm:                                  
-      valueFiles:
-        - values.yaml
-      parameters:
-        - name: vault.server.dev.enabled
-          value: "false"
   destination:
     server: https://kubernetes.default.svc
     namespace: vault
