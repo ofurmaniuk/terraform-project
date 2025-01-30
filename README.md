@@ -221,7 +221,10 @@ kubectl apply -f k8s/argocd/applications/main/ingress-nginx.yaml
 
 # ============= Metrics-Server ============ #
 cd helm/charts/metrics-server && helm dependency build && cd ../../..
-kubectl apply -f k8s/argocd/applications/main/metrics-server.yaml 
+
+
+# ============= Falco ============== #
+
 
 
 cd helm/charts/monitoring
