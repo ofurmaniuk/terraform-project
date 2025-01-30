@@ -191,15 +191,13 @@ kubectl get secret --namespace monitoring monitoring-grafana -o jsonpath="{.data
 
 
 
-
+```shell
 # =============== Vault ====================== #
 kubectl apply -f k8s/argocd/applications/main/vault.yaml
 
 # Initialize Vault and get unsealing keys - CRITICAL: BACKUP THESE KEYS!
 kubectl exec -it vault-0 -n vault -- sh
 vault operator init
-
-
 
 # Unseal the vault with 3 different keys
 vault operator unseal KEY1
@@ -208,6 +206,17 @@ vault operator unseal KEY3
 
 # Authenticate with root token
 vault login ROOT_TOKEN
+
+kubectl get svc -n vault vault-ui -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+http://<your-load-balancer-url>:8200
+# use token and root token as password 
+``` 
+
+```shell
+
+# ============ Ingress-Nginx ============= # 
+
+kubectl apply -f ingress-nginx.yaml
 
 
 cd helm/charts/monitoring
