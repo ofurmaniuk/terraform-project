@@ -221,6 +221,7 @@ kubectl apply -f k8s/argocd/applications/main/ingress-nginx.yaml
 
 
 
+
 cd helm/charts/monitoring
 helm dependency update .
 helm install monitoring . -n monitoring
