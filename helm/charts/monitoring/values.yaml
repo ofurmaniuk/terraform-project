@@ -42,6 +42,10 @@ grafana:
           type: loki
           url: http://monitoring-loki:3100
           access: proxy
+        - name: Falco
+          type: falco
+          url: http://falco-service:2801
+          access: proxy
 
 loki:
   enabled: true
