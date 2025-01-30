@@ -173,6 +173,8 @@ kubectl get svc -n argocd
 kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 -d
 # Apply csi- driver that allows to create persisten volumes 
 kubectl apply -f k8s/argocd/applications/main/aws-ebs-csi-driver.yaml
+# Downloads dependencies for monitoring stack 
+cd helm/charts/monitoring && helm dependency build && cd ../../..
 # Apply manifest of monitoring stack ( list of programs)
 kubectl apply -f k8s/argocd/applications/main/monitoring.yaml
 
