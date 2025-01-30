@@ -161,44 +161,44 @@ resource "aws_eks_node_group" "main" {
   tags = local.common_tags
 }
 
-# # Vault IAM Role
-# resource "aws_iam_role" "vault" {
-#   name = "${var.environment}-vault-role"
+# Vault IAM Role
+resource "aws_iam_role" "vault" {
+  name = "${var.environment}-vault-role"
   
-#   assume_role_policy = jsonencode({
-#     Version = "2012-10-17"
-#     Statement = [{
-#       Effect = "Allow"
-#       Principal = {
-#         Service = "ec2.amazonaws.com"
-#       }
-#       Action = "sts:AssumeRole"
-#     }]
-#   })
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      }
+      Action = "sts:AssumeRole"
+    }]
+  })
 
-#   tags = local.common_tags
-# }
+  tags = local.common_tags
+}
 
-# # Vault Secrets Policy
-# resource "aws_iam_role_policy" "vault_secrets" {
-#   name = "${var.environment}-vault-secrets"
-#   role = aws_iam_role.vault.id
+# Vault Secrets Policy
+resource "aws_iam_role_policy" "vault_secrets" {
+  name = "${var.environment}-vault-secrets"
+  role = aws_iam_role.vault.id
 
-#   policy = jsonencode({
-#     Version = "2012-10-17"
-#     Statement = [
-#       {
-#         Effect = "Allow"
-#         Action = [
-#           "secretsmanager:GetSecretValue",
-#           "secretsmanager:DescribeSecret",
-#           "secretsmanager:ListSecrets",
-#           "secretsmanager:ListSecretVersionIds",
-#           "secretsmanager:CreateSecret",
-#           "secretsmanager:UpdateSecret"
-#         ]
-#         Resource = "arn:aws:secretsmanager:${data.aws_caller_identity.current.region}:${data.aws_caller_identity.current.account_id}:secret:*"
-#       }
-#     ]
-#   })
-# }
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret",
+          "secretsmanager:ListSecrets",
+          "secretsmanager:ListSecretVersionIds",
+          "secretsmanager:CreateSecret",
+          "secretsmanager:UpdateSecret"
+        ]
+        Resource = "arn:aws:secretsmanager:${data.aws_caller_identity.current.region}:${data.aws_caller_identity.current.account_id}:secret:*"
+      }
+    ]
+  })
+}
