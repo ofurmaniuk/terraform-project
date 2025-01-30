@@ -17,6 +17,11 @@ prometheus:
       requests:
         cpu: 100m
         memory: 256Mi
+    extraScrapeConfigs: |
+      - job_name: 'falco'
+        static_configs:
+          - targets: ['monitoring-falco:2801']
+        metrics_path: /metrics
 
 grafana:
   persistence:
@@ -43,28 +48,24 @@ grafana:
           url: http://monitoring-loki:3100
           access: proxy
         - name: Falco
-          type: falco
-          url: http://falco-service:2801
+          type: prometheus    
+          url: http://monitoring-prometheus-server
           access: proxy
 
 loki:
   enabled: true
   singleBinary:
     replicas: 1
-
   persistence:
     enabled: true
     size: 5Gi
-
   loki:
     auth_enabled: false
     server:
       http_listen_port: 3100
       grpc_listen_port: 9095
-      
     storage:
       type: filesystem
-      
     structuredConfig:
       common:
         instance_addr: 127.0.0.1
@@ -77,7 +78,6 @@ loki:
         ring:
           kvstore:
             store: inmemory
-
       schema_config:
         configs:
           - from: 2020-10-24
@@ -87,7 +87,6 @@ loki:
             index:
               prefix: index_
               period: 24h
-
       limits_config:
         enforce_metric_name: false
         reject_old_samples: true
@@ -95,7 +94,6 @@ loki:
         max_entries_limit_per_query: 5000
         ingestion_rate_mb: 4
         ingestion_burst_size_mb: 6
-
   resources:
     limits:
       cpu: 500m
@@ -110,7 +108,6 @@ promtail:
     serverPort: 3101
     clients:
       - url: http://monitoring-loki:3100/loki/api/v1/push
-
   resources:
     limits:
       cpu: 100m
@@ -118,16 +115,18 @@ promtail:
     requests:
       cpu: 50m
       memory: 64Mi
-
   tolerations:
     - operator: Exists
-
 
 falco:
   enabled: true
   driver:
     kind: ebpf
   
+  service:
+    type: ClusterIP
+    port: 2801
+    
   resources:
     limits:
       cpu: 100m
@@ -139,6 +138,11 @@ falco:
   falco:
     jsonOutput: true
     jsonIncludeOutputProperty: true
+    webserver:
+      enabled: true
+      listenPort: 2801
+      ssl: 
+        enabled: false
     programOutput:
       enabled: true
       program: "curl -d @- -X POST http://monitoring-loki:3100/loki/api/v1/push"
