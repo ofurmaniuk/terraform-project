@@ -161,6 +161,8 @@ resource "aws_eks_node_group" "main" {
   tags = local.common_tags
 }
 
+data "aws_region" "current" {}
+
 # Vault IAM Role
 resource "aws_iam_role" "vault" {
   name = "${var.environment}-vault-role"
@@ -197,7 +199,7 @@ resource "aws_iam_role_policy" "vault_secrets" {
           "secretsmanager:CreateSecret",
           "secretsmanager:UpdateSecret"
         ]
-        Resource = "arn:aws:secretsmanager:${data.aws_caller_identity.current.region}:${data.aws_caller_identity.current.account_id}:secret:*"
+        Resource = "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:*"
       }
     ]
   })
