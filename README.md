@@ -216,6 +216,7 @@ http://<your-load-balancer-url>:8200
 
 # ============ Ingress-Nginx ============= # 
 
+cd helm/charts/ingress-nginx && helm dependency build && cd ../../..
 kubectl apply -f k8s/argocd/applications/main/ingress-nginx.yaml 
 
 
