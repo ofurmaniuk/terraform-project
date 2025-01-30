@@ -216,7 +216,8 @@ http://<your-load-balancer-url>:8200
 
 # ============ Ingress-Nginx ============= # 
 
-kubectl apply -f ingress-nginx.yaml
+kubectl apply -f k8s/argocd/applications/main/ingress-nginx.yaml 
+
 
 
 cd helm/charts/monitoring
