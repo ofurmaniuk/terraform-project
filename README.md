@@ -219,7 +219,9 @@ http://<your-load-balancer-url>:8200
 cd helm/charts/ingress-nginx && helm dependency build && cd ../../..
 kubectl apply -f k8s/argocd/applications/main/ingress-nginx.yaml 
 
-
+# ============= Metrics-Server ============ #
+cd helm/charts/metrics-server && helm dependency build && cd ../../..
+kubectl apply -f k8s/argocd/applications/main/metrics-server.yaml 
 
 
 cd helm/charts/monitoring
