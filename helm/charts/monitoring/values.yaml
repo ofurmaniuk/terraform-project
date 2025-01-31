@@ -47,10 +47,6 @@ grafana:
           type: loki
           url: http://monitoring-loki:3100
           access: proxy
-        - name: Falco
-          type: prometheus    
-          url: http://monitoring-prometheus-server
-          access: proxy
 
 loki:
   enabled: true
@@ -136,16 +132,11 @@ falco:
       memory: 64Mi
 
   falco:
-    jsonOutput: true
-    jsonIncludeOutputProperty: true
     webserver:
       enabled: true
       listenPort: 2801
       ssl: 
         enabled: false
-    programOutput:
-      enabled: true
-      program: "curl -d @- -X POST http://monitoring-loki:3100/loki/api/v1/push"
 
   customRules:
     rules-falco.yaml: |-

@@ -249,7 +249,7 @@ cd helm/charts/aws-ebs-csi-driver && helm dependency build && cd ../../..
 
 # dashbord for prometheus 1860 
 # dashboard for loki 15141
-# dashboard for Falco 17319
+# dashboard for Falco 11914 
 ```
 
  
