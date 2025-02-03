@@ -221,7 +221,6 @@ grafana:
             "weekStart": ""
           }
 
-
 loki:
   enabled: true
   singleBinary:
@@ -323,6 +322,54 @@ falco:
   driver:
     kind: ebpf
 
+  # DaemonSet configuration
+  daemonset:
+    enabled: true
+
+  # Security contexts
+  podSecurityContext:
+    privileged: true
+  
+  containerSecurityContext:
+    privileged: true
+    capabilities:
+      add: ["SYS_ADMIN", "BPF"]
+
+  # Resources
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1024Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+  # Health checks
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: 2801
+    initialDelaySeconds: 30
+    periodSeconds: 15
+  readinessProbe:
+    httpGet:
+      path: /healthz
+      port: 2801
+    initialDelaySeconds: 30
+    periodSeconds: 15
+
+  # Tolerations
+  tolerations:
+    - effect: NoSchedule
+      operator: Exists
+    - effect: NoExecute
+      operator: Exists
+
+  rbac:
+    create: true
+    serviceAccount:
+      create: true
+
   service:
     type: ClusterIP
     port: 2801
@@ -332,6 +379,7 @@ falco:
     json_include_output_property: true
     log_stderr: true
     log_stdout: true
+    k8s_audit_rules_enabled: true
     file_output:
       enabled: true
       filename: /var/log/falco/falco.log
@@ -347,13 +395,10 @@ falco:
     grpc_output:
       enabled: true
     
-    # Rules configurations
     rules_file:
       - /etc/falco/falco_rules.yaml
-      - /etc/falco/falco.yaml
       - /etc/falco/rules.d
    
-    # Program output configurations
     program_output:
       enabled: true
       program: "jq '{text: .output}' | curl -d @- -X POST https://hooks.slack.com/services/YOUR/SLACK/URL"
