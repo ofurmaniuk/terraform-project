@@ -321,79 +321,56 @@ promtail:
 falco:
   enabled: true
   driver:
-    kind: ebpf
+    kind: ebpf # Using eBPF instead of kernel module for better stability
+    loader:
+      enabled: true  # This is crucial for eBPF
 
-  # Add DaemonSet configuration
-  daemonset:
-    enabled: true
+  tty: true  # Required for proper initialization
+  
+  containerSecurityContext:
+    privileged: true   # Falco needs privileged access
+    capabilities:
+      add:
+        - SYS_PTRACE
+        - NET_ADMIN
+        - SYS_ADMIN
+        - SYS_RESOURCE
+        - SYS_MODULE
+        - AUDIT_CONTROL
+        - SYSLOG
+        - AUDIT_READ
 
-  # Add proper security context
-  podSecurityContext:
-    privileged: true
-
-  # Add necessary tolerations
   tolerations:
     - effect: NoSchedule
       operator: Exists
     - effect: NoExecute
       operator: Exists
 
-  rbac:
-    create: true
-    serviceAccount:
-      create: true
-
-  service:
-    type: ClusterIP
-    port: 2801
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
 
   falco:
     json_output: true
     json_include_output_property: true
     log_stderr: true
     log_stdout: true
+    
     file_output:
       enabled: true
       filename: /var/log/falco/falco.log
       keep_alive: true
+
     webserver:
       enabled: true
       listen_port: 2801
       k8s_audit_endpoint: /k8s-audit
       ssl_enabled: false
+
     grpc:
       enabled: true
       bind_address: "unix:///var/run/falco/falco.sock"
-    grpc_output:
-      enabled: true
-    
-    # Fixed rules configuration - removed falco.yaml as it's not a rules file
-    rules_file:
-      - /etc/falco/falco_rules.yaml
-      - /etc/falco/rules.d
-   
-    program_output:
-      enabled: true
-      program: "jq '{text: .output}' | curl -d @- -X POST https://hooks.slack.com/services/YOUR/SLACK/URL"
-
-  customRules:
-    rules-falco.yaml: |-
-      - rule: Shell in Container
-        desc: Shell access detected in container
-        condition: >
-          spawned_process and container
-          and proc.name in (shell_binaries)
-          and not container.name in ("falco", "monitoring-promtail", "monitoring-loki")
-        output: Shell started in container (user=%user.name container=%container.id shell=%proc.name)
-        priority: WARNING
-        tags: [shell, container]
-
-      - rule: Suspicious Package Management
-        desc: Package management command in container
-        condition: >
-          spawned_process and container
-          and proc.name in (package_mgmt_binaries)
-          and not container.name in ("monitoring-promtail", "monitoring-loki")
-        output: Package management command in container (user=%user.name container=%container.id command=%proc.cmdline)
-        priority: WARNING
-        tags: [package, container]
