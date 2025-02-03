@@ -221,6 +221,7 @@ grafana:
             "weekStart": ""
           }
 
+
 loki:
   enabled: true
   singleBinary:
@@ -322,43 +323,15 @@ falco:
   driver:
     kind: ebpf
 
-  # DaemonSet configuration
+  # Add DaemonSet configuration
   daemonset:
     enabled: true
 
-  # Security contexts
+  # Add proper security context
   podSecurityContext:
     privileged: true
-  
-  containerSecurityContext:
-    privileged: true
-    capabilities:
-      add: ["SYS_ADMIN", "BPF"]
 
-  # Resources
-  resources:
-    limits:
-      cpu: 1000m
-      memory: 1024Mi
-    requests:
-      cpu: 100m
-      memory: 256Mi
-
-  # Health checks
-  livenessProbe:
-    httpGet:
-      path: /healthz
-      port: 2801
-    initialDelaySeconds: 30
-    periodSeconds: 15
-  readinessProbe:
-    httpGet:
-      path: /healthz
-      port: 2801
-    initialDelaySeconds: 30
-    periodSeconds: 15
-
-  # Tolerations
+  # Add necessary tolerations
   tolerations:
     - effect: NoSchedule
       operator: Exists
@@ -379,7 +352,6 @@ falco:
     json_include_output_property: true
     log_stderr: true
     log_stdout: true
-    k8s_audit_rules_enabled: true
     file_output:
       enabled: true
       filename: /var/log/falco/falco.log
@@ -395,6 +367,7 @@ falco:
     grpc_output:
       enabled: true
     
+    # Fixed rules configuration - removed falco.yaml as it's not a rules file
     rules_file:
       - /etc/falco/falco_rules.yaml
       - /etc/falco/rules.d

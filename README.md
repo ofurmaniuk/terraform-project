@@ -193,7 +193,7 @@ kubectl get svc -n monitoring
 # Check Grafana password 
 kubectl get secret --namespace monitoring monitoring-grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
 
-
+kubectl delete ns argocd 
 
 ```shell
 # =============== Vault ====================== #
