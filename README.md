@@ -177,7 +177,9 @@ kubectl apply -f k8s/argocd/applications/main/aws-ebs-csi-driver.yaml
 cd helm/charts/monitoring && helm dependency build && cd ../../..
 # Apply manifest of monitoring stack ( list of programs)
 kubectl apply -f k8s/argocd/applications/main/monitoring.yaml
-
+kubectl apply -f k8s/argocd/applications/main/ingress-nginx.yaml
+kubectl apply -f k8s/argocd/applications/main/metrics-server.yaml
+kubectl apply -f k8s/argocd/applications/main/vault.yaml
 # Delete everything in namespace monitoring 
 kubectl delete all --all -n monitoring
 
