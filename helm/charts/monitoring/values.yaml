@@ -221,7 +221,6 @@ grafana:
             "weekStart": ""
           }
 
-
 loki:
   enabled: true
   singleBinary:
@@ -283,14 +282,17 @@ promtail:
     positions:
       filename: /run/promtail/positions.yaml
     scrape_configs:
-      - job_name: falco-security-logs
+      - job_name: falco
         static_configs:
           - targets:
               - localhost
             labels:
               job: falco
-              env: pet
+              env: production
               type: security_event
+        file_sd_configs:
+          - files:
+            - /var/log/falco/*.log
         pipeline_stages:
           - json:
               expressions:
@@ -317,18 +319,23 @@ promtail:
       memory: 64Mi
   tolerations:
     - operator: Exists
+  extraVolumeMounts:
+    - name: falco-logs
+      mountPath: /var/log/falco
+  extraVolumes:
+    - name: falco-logs
+      emptyDir: {}
 
 falco:
   enabled: true
   driver:
-    kind: ebpf # Using eBPF instead of kernel module for better stability
-    loader:
-      enabled: true  # This is crucial for eBPF
+    kind: ebpf
+    enabled: true
 
-  tty: true  # Required for proper initialization
+  tty: true
   
   containerSecurityContext:
-    privileged: true   # Falco needs privileged access
+    privileged: true
     capabilities:
       add:
         - SYS_PTRACE
@@ -340,19 +347,30 @@ falco:
         - SYSLOG
         - AUDIT_READ
 
-  tolerations:
-    - effect: NoSchedule
-      operator: Exists
-    - effect: NoExecute
-      operator: Exists
+  serviceMonitor:
+    enabled: true
+    interval: 10s
+    endpoints:
+      - port: metrics
+        path: /metrics
 
-  resources:
-    requests:
-      cpu: 100m
-      memory: 256Mi
-    limits:
-      cpu: 1000m
-      memory: 512Mi
+  extraInitContainers:
+    - name: init-falco-logs
+      image: busybox:latest
+      command: ['sh', '-c']
+      args:
+        - mkdir -p /var/log/falco && chmod 744 /var/log/falco
+      volumeMounts:
+        - mountPath: /var/log/falco
+          name: falco-logs
+
+  extraVolumes:
+    - name: falco-logs
+      emptyDir: {}
+
+  extraVolumeMounts:
+    - mountPath: /var/log/falco
+      name: falco-logs
 
   falco:
     json_output: true
@@ -370,7 +388,22 @@ falco:
       listen_port: 2801
       k8s_audit_endpoint: /k8s-audit
       ssl_enabled: false
+      metrics_enabled: true
 
     grpc:
       enabled: true
       bind_address: "unix:///var/run/falco/falco.sock"
+
+  tolerations:
+    - effect: NoSchedule
+      operator: Exists
+    - effect: NoExecute
+      operator: Exists
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
