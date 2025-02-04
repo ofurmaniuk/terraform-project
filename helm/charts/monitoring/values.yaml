@@ -1,146 +1,17 @@
-nameOverride: monitoring
-fullnameOverride: monitoring
-
-prometheus:
-  server:
-    persistentVolume:
-      enabled: true
-      size: 4Gi
-    service:
-      type: LoadBalancer
-      annotations:
-        service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
-    resources:
-      limits:
-        cpu: 300m
-        memory: 512Mi
-      requests:
-        cpu: 100m
-        memory: 256Mi
-    extraScrapeConfigs: |
-      - job_name: 'falco-metrics'
-        static_configs:
-          - targets: ['falco-falcosidekick:2801']
-        metrics_path: /metrics
-      - job_name: 'falco-sidekick-metrics'
-        static_configs:
-          - targets: ['falco-falcosidekick:2801']
-    
-
-grafana:
-  persistence:
-    enabled: true
-    size: 2Gi
-  service:
-    type: LoadBalancer
-    port: 80
-    annotations:
-      service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
-  adminUser: admin
-  adminPassword: admin
-  datasources:
-    datasources.yaml:
-      apiVersion: 1
-      datasources:
-        - name: Prometheus
-          type: prometheus
-          url: http://monitoring-prometheus-server
-          access: proxy
-          isDefault: true
-        - name: Loki
-          type: loki
-          url: http://monitoring-loki:3100
-          access: proxy
-
-loki:
-  enabled: true
-  singleBinary:
-    replicas: 1
-  persistence:
-    enabled: true
-    size: 5Gi
-  loki:
-    auth_enabled: false
-    server:
-      http_listen_port: 3100
-      grpc_listen_port: 9095
-    storage:
-      type: filesystem
-    structuredConfig:
-      common:
-        instance_addr: 127.0.0.1
-        path_prefix: /tmp/loki
-        storage:
-          filesystem:
-            chunks_directory: /tmp/loki/chunks
-            rules_directory: /tmp/loki/rules
-        replication_factor: 1
-        ring:
-          kvstore:
-            store: inmemory
-      schema_config:
-        configs:
-          - from: 2020-10-24
-            store: boltdb-shipper
-            object_store: filesystem
-            schema: v11
-            index:
-              prefix: index_
-              period: 24h
-      limits_config:
-        enforce_metric_name: false
-        reject_old_samples: true
-        reject_old_samples_max_age: 168h
-        max_entries_limit_per_query: 5000
-        ingestion_rate_mb: 4
-        ingestion_burst_size_mb: 6
-  resources:
-    limits:
-      cpu: 500m
-      memory: 512Mi
-    requests:
-      cpu: 200m
-      memory: 256Mi
-
-promtail:
-  enabled: true
-  config:
-    serverPort: 3101
-    clients:
-      - url: http://monitoring-loki:3100/loki/api/v1/push
-  resources:
-    limits:
-      cpu: 100m
-      memory: 128Mi
-    requests:
-      cpu: 50m
-      memory: 64Mi
-  tolerations:
-    - operator: Exists
-
 falco:
   enabled: true
   driver:
-    kind: ebpf
+    kind: modern-bpf
     enabled: true
-    loader:
-      initContainer:
-        securityContext:
-          privileged: true
-          capabilities:
-            add: ["SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE"]
-  ebpf:
-    enabled: true
-    settings:
-      probe: auto
+  tty: true
 
   # --- Security Context ---
   containerSecurityContext:
-    privileged: false
+    privileged: true  # Changed to true
     readOnlyRootFilesystem: true
-    allowPrivilegeEscalation: false
+    allowPrivilegeEscalation: true  # Changed to true
     capabilities:
-      add: ["SYS_PTRACE", "SYS_ADMIN", "SYS_RESOURCE"]  # Required for eBPF
+      add: ["SYS_PTRACE", "SYS_ADMIN", "SYS_RESOURCE"]
       drop: ["ALL"]
 
   # --- Resource Limits ---
@@ -157,6 +28,7 @@ falco:
     - /etc/falco/falco_rules.yaml
     - /etc/falco/falco_rules.local.yaml
     - /etc/falco/k8s_audit_rules.yaml
+  
   # --- Output Configuration ---
   json_output: true
   stdout_output:
@@ -216,7 +88,5 @@ falco:
 
   # --- Pod Security ---
   podSecurityContext:
-    fsGroup: 1000
-    runAsUser: 1000
-    runAsNonRoot: true
-
+    runAsNonRoot: false  # Changed to false
+    runAsUser: 0  # Changed to 0
