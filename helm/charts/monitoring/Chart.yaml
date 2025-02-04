@@ -19,5 +19,3 @@ dependencies:
   - name: falco
     version: "4.18.0"
     repository: "https://falcosecurity.github.io/charts"
-    import-values:
-      - falcosidekick
