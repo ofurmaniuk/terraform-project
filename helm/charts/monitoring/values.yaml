@@ -17,6 +17,14 @@ prometheus:
       requests:
         cpu: 100m
         memory: 256Mi
+    extraScrapeConfigs: |
+      - job_name: 'falco-metrics'
+        static_configs:
+          - targets: ['falco-falcosidekick:2801']
+        metrics_path: /metrics
+      - job_name: 'falco-sidekick-metrics'
+        static_configs:
+          - targets: ['falco-falcosidekick:2801']
     
 
 grafana:
@@ -109,4 +117,102 @@ promtail:
       memory: 64Mi
   tolerations:
     - operator: Exists
+
+falco:
+  enabled: true
+  # --- Driver Configuration (eBPF recommended) ---
+  driver:
+    kind: ebpf
+    enabled: true
+  ebpf:
+    enabled: true
+    settings:
+      # For newer kernels (>5.8)
+      probe: auto
+
+  # --- Security Context ---
+  containerSecurityContext:
+    privileged: false
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      add: ["SYS_PTRACE", "SYS_ADMIN", "SYS_RESOURCE"]  # Required for eBPF
+      drop: ["ALL"]
+
+  # --- Resource Limits ---
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 150m
+      memory: 256Mi
+
+  # --- Rules Configuration ---
+  rules_file:
+    - /etc/falco/falco_rules.yaml
+    - /etc/falco/falco_rules.local.yaml
+    - /etc/falco/k8s_audit_rules.yaml
+  # --- Output Configuration ---
+  json_output: true
+  stdout_output:
+    enabled: true  # For Promtail to collect
+  http_output:
+    enabled: true
+    url: "http://falco-falcosidekick:2801"
+
+  # --- Metrics (Falco internal) ---
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: false  # Use Falcosidekick metrics instead
+
+  # --- Falcosidekick Integration ---
+  falcosidekick:
+    enabled: true
+    # --- Falcosidekick Security Context ---
+    containerSecurityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+    # --- Resources ---
+    resources:
+      limits:
+        cpu: 200m
+        memory: 128Mi
+      requests:
+        cpu: 50m
+        memory: 64Mi
+    # --- Outputs ---
+    config:
+      debug: true
+      customfields: "project:terraform-project,env:main"
+      prometheus:
+        enabled: true
+        metricslabels:
+          - "rule"
+          - "priority"
+      loki:
+        host: "monitoring-loki:3100"
+        labels:
+          app: "falco"
+          severity: "priority"
+      webui:
+        enabled: true
+        url: "http://falco-falcosidekick-ui:2802"
+    # --- Collectors (Metrics) ---
+    metrics:
+      enabled: true
+      port: 2801
+      serviceMonitor:
+        enabled: true
+        additionalLabels:
+          release: "monitoring-prometheus"  # Match your Prometheus instance
+
+  # --- Pod Security ---
+  podSecurityContext:
+    fsGroup: 1000
+    runAsUser: 1000
+    runAsNonRoot: true
 

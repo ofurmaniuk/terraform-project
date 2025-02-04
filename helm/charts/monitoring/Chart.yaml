@@ -16,3 +16,8 @@ dependencies:
   - name: promtail
     version: "6.15.3"
     repository: "https://grafana.github.io/helm-charts"
+  - name: falco
+    version: "4.18.0"
+    repository: "https://falcosecurity.github.io/charts"
+    import-values:
+      - falcosidekick
