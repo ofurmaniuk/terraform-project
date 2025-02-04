@@ -1,92 +1,280 @@
-falco:
-  enabled: true
-  driver:
-    kind: modern-bpf
+# falco:
+#   enabled: true
+#   driver:
+#     kind: modern-bpf
+#     enabled: true
+#   tty: true
+
+#   # --- Security Context ---
+#   containerSecurityContext:
+#     privileged: true  # Changed to true
+#     readOnlyRootFilesystem: true
+#     allowPrivilegeEscalation: true  # Changed to true
+#     capabilities:
+#       add: ["SYS_PTRACE", "SYS_ADMIN", "SYS_RESOURCE"]
+#       drop: ["ALL"]
+
+#   # --- Resource Limits ---
+#   resources:
+#     limits:
+#       cpu: 500m
+#       memory: 512Mi
+#     requests:
+#       cpu: 150m
+#       memory: 256Mi
+
+#   # --- Rules Configuration ---
+#   rules_file:
+#     - /etc/falco/falco_rules.yaml
+#     - /etc/falco/falco_rules.local.yaml
+#     - /etc/falco/k8s_audit_rules.yaml
+
+#   # --- Output Configuration ---
+#   json_output: true
+#   stdout_output:
+#     enabled: true  # For Promtail to collect
+#   http_output:
+#     enabled: true
+#     url: "http://falco-falcosidekick:2801"
+
+#   # --- Metrics (Falco internal) ---
+#   metrics:
+#     enabled: true
+#     serviceMonitor:
+#       enabled: false  # Use Falcosidekick metrics instead
+
+#   # --- Falcosidekick Integration ---
+#   falcosidekick:
+#     enabled: true
+#     # --- Falcosidekick Security Context ---
+#     containerSecurityContext:
+#       readOnlyRootFilesystem: true
+#       allowPrivilegeEscalation: false
+#       capabilities:
+#         drop: ["ALL"]
+#     # --- Resources ---
+#     resources:
+#       limits:
+#         cpu: 200m
+#         memory: 128Mi
+#       requests:
+#         cpu: 50m
+#         memory: 64Mi
+#     # --- Outputs ---
+#     config:
+#       debug: true
+#       customfields: "project:terraform-project,env:main"
+#       prometheus:
+#         enabled: true
+#         metricslabels:
+#           - "rule"
+#           - "priority"
+#       loki:
+#         host: "monitoring-loki:3100"
+#         labels:
+#           app: "falco"
+#           severity: "priority"
+#       webui:
+#         enabled: true
+#         url: "http://falco-falcosidekick-ui:2802"
+#     # --- Collectors (Metrics) ---
+#     metrics:
+#       enabled: true
+#       port: 2801
+#       serviceMonitor:
+#         enabled: true
+#         additionalLabels:
+#           release: "monitoring-prometheus"  # Match your Prometheus instance
+
+#   # --- Pod Security ---
+#   podSecurityContext:
+#     runAsNonRoot: false  # Changed to false
+#     runAsUser: 0  # Changed to 0
+nameOverride: monitoring
+fullnameOverride: monitoring
+prometheus:
+server:
+  persistentVolume:
     enabled: true
-  tty: true
+    size: 4Gi
+  service:
+    type: LoadBalancer
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+  resources:
+    limits:
+      cpu: 300m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
 
-  # --- Security Context ---
-  containerSecurityContext:
-    privileged: true  # Changed to true
-    readOnlyRootFilesystem: true
-    allowPrivilegeEscalation: true  # Changed to true
-    capabilities:
-      add: ["SYS_PTRACE", "SYS_ADMIN", "SYS_RESOURCE"]
-      drop: ["ALL"]
-
-  # --- Resource Limits ---
+grafana:
+persistence:
+  enabled: true
+  size: 2Gi
+service:
+  type: LoadBalancer
+  port: 80
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+adminUser: admin
+adminPassword: admin
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        url: http://monitoring-prometheus-server
+        access: proxy
+        isDefault: true
+      - name: Loki
+        type: loki
+        url: http://monitoring-loki:3100
+        access: proxy
+loki:
+  enabled: true
+  singleBinary:
+    replicas: 1
+  persistence:
+    enabled: true
+    size: 5Gi
+  loki:
+    auth_enabled: false
+    server:
+      http_listen_port: 3100
+      grpc_listen_port: 9095
+    storage:
+      type: filesystem
+    structuredConfig:
+      common:
+        instance_addr: 127.0.0.1
+        path_prefix: /tmp/loki
+        storage:
+          filesystem:
+            chunks_directory: /tmp/loki/chunks
+            rules_directory: /tmp/loki/rules
+        replication_factor: 1
+        ring:
+          kvstore:
+            store: inmemory
+      schema_config:
+        configs:
+          - from: 2020-10-24
+            store: boltdb-shipper
+            object_store: filesystem
+            schema: v11
+            index:
+              prefix: index_
+              period: 24h
+      limits_config:
+        enforce_metric_name: false
+        reject_old_samples: true
+        reject_old_samples_max_age: 168h
+        max_entries_limit_per_query: 5000
+        ingestion_rate_mb: 4
+        ingestion_burst_size_mb: 6
   resources:
     limits:
       cpu: 500m
       memory: 512Mi
     requests:
-      cpu: 150m
+      cpu: 200m
       memory: 256Mi
+promtail:
+  enabled: true
+  config:
+    serverPort: 3101
+    clients:
+      - url: http://monitoring-loki:3100/loki/api/v1/push
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+  tolerations:
+    - operator: Exists
 
-  # --- Rules Configuration ---
-  rules_file:
-    - /etc/falco/falco_rules.yaml
-    - /etc/falco/falco_rules.local.yaml
-    - /etc/falco/k8s_audit_rules.yaml
-  
-  # --- Output Configuration ---
-  json_output: true
-  stdout_output:
-    enabled: true  # For Promtail to collect
-  http_output:
-    enabled: true
-    url: "http://falco-falcosidekick:2801"
-
-  # --- Metrics (Falco internal) ---
-  metrics:
-    enabled: true
-    serviceMonitor:
-      enabled: false  # Use Falcosidekick metrics instead
-
-  # --- Falcosidekick Integration ---
+falco:
   falcosidekick:
     enabled: true
-    # --- Falcosidekick Security Context ---
-    containerSecurityContext:
-      readOnlyRootFilesystem: true
-      allowPrivilegeEscalation: false
-      capabilities:
-        drop: ["ALL"]
-    # --- Resources ---
+    config:
+      debug: true
+      checkcert: false
+      loki:
+        enabled: true
+        hostport: "http://monitoring-loki.monitoring.svc.cluster.local:3100"
+        minimumpriority: "debug"
+
     resources:
       limits:
-        cpu: 200m
+        cpu: 100m
         memory: 128Mi
       requests:
         cpu: 50m
         memory: 64Mi
-    # --- Outputs ---
-    config:
-      debug: true
-      customfields: "project:terraform-project,env:main"
-      prometheus:
-        enabled: true
-        metricslabels:
-          - "rule"
-          - "priority"
-      loki:
-        host: "monitoring-loki:3100"
-        labels:
-          app: "falco"
-          severity: "priority"
-      webui:
-        enabled: true
-        url: "http://falco-falcosidekick-ui:2802"
-    # --- Collectors (Metrics) ---
-    metrics:
-      enabled: true
-      port: 2801
-      serviceMonitor:
-        enabled: true
-        additionalLabels:
-          release: "monitoring-prometheus"  # Match your Prometheus instance
 
-  # --- Pod Security ---
-  podSecurityContext:
-    runAsNonRoot: false  # Changed to false
-    runAsUser: 0  # Changed to 0
+  metrics:
+    enabled: true
+    service:
+      type: ClusterIP
+      port: 8765
+    serviceMonitor:
+      enabled: true
+      namespace: monitoring
+      interval: 15s
+      scrapeTimeout: 10s
+      additionalLabels:
+        release: monitoring
+
+  driver:
+    enabled: true
+    kind: ebpf
+    loader:
+      enabled: true
+      initContainer:
+        securityContext:
+          privileged: true
+        env:
+          - name: FALCO_BPF_PROBE
+            value: "/root/.falco/falco-bpf.o"
+
+  containerSecurityContext:
+    privileged: true
+    capabilities:
+      add:
+        - SYS_ADMIN
+        - SYS_RESOURCE
+        - SYS_PTRACE
+        - NET_ADMIN
+        - IPC_LOCK
+        - SYS_NICE
+
+  collectors:
+    enabled: true
+    docker:
+      enabled: true
+      socket: /var/run/docker.sock
+    containerd:
+      enabled: true
+      socket: /run/containerd/containerd.sock
+    crio:
+      enabled: true
+      socket: /run/crio/crio.sock
+
+  log_level: info
+  json_output: true
+  log_stderr: true
+
+  rules_files:
+    - /etc/falco/falco_rules.yaml
+    - /etc/falco/falco_rules.local.yaml
+    - /etc/falco/rules.d
+
+  stdout_output:
+    enabled: true
+  syslog_output:
+    enabled: false
