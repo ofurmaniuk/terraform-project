@@ -357,9 +357,15 @@ falco:
   extraInitContainers:
     - name: init-falco-logs
       image: busybox:latest
+      securityContext:
+        privileged: true
+        runAsUser: 0
       command: ['sh', '-c']
       args:
-        - mkdir -p /var/log/falco && chmod 744 /var/log/falco
+        - |
+          mkdir -p /var/log/falco && 
+          chmod -R 744 /var/log/falco &&
+          chown -R nobody:nobody /var/log/falco
       volumeMounts:
         - mountPath: /var/log/falco
           name: falco-logs
