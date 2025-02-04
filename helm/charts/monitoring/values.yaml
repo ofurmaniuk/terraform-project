@@ -120,14 +120,18 @@ promtail:
 
 falco:
   enabled: true
-  # --- Driver Configuration (eBPF recommended) ---
   driver:
     kind: ebpf
     enabled: true
+    loader:
+      initContainer:
+        securityContext:
+          privileged: true
+          capabilities:
+            add: ["SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE"]
   ebpf:
     enabled: true
     settings:
-      # For newer kernels (>5.8)
       probe: auto
 
   # --- Security Context ---
