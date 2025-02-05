@@ -19,29 +19,29 @@ prometheus:
         memory: 256Mi
 
 grafana:
-persistence:
-  enabled: true
-  size: 2Gi
-service:
-  type: LoadBalancer
-  port: 80
-  annotations:
-    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
-adminUser: admin
-adminPassword: admin
-datasources:
-  datasources.yaml:
-    apiVersion: 1
-    datasources:
-      - name: Prometheus
-        type: prometheus
-        url: http://monitoring-prometheus-server
-        access: proxy
-        isDefault: true
-      - name: Loki
-        type: loki
-        url: http://monitoring-loki:3100
-        access: proxy
+  persistence:  # ✅ Indented under `grafana`
+    enabled: true
+    size: 2Gi
+  service:
+    type: LoadBalancer
+    port: 80
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+  adminUser: admin
+  adminPassword: admin
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          url: http://monitoring-prometheus-server
+          access: proxy
+          isDefault: true
+        - name: Loki
+          type: loki
+          url: http://monitoring-loki:3100
+          access: proxy
 loki:
   enabled: true
   singleBinary:
