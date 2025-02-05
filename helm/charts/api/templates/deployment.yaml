@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-api
+  labels:
+    {{- include "api.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "api.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "api.selectorLabels" . | nindent 8 }}
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/agent-inject-status: "update"
+        vault.hashicorp.com/role: "api"
+        vault.hashicorp.com/agent-inject-secret-db-creds: {{ .Values.vault.secretPath }}
+        vault.hashicorp.com/agent-inject-template-db-creds: |
+          {{`{{- with secret "${vault.secretPath}" -}}
+          export DBHOST="{{ .Data.data.host }}"
+          export DBUSER="{{ .Data.data.username }}"
+          export DBPASS="{{ .Data.data.password }}"
+          export DBPORT="{{ .Data.data.port }}"
+          export DB="{{ .Data.data.dbname }}"
+          {{- end }}`}}
+    spec:
+      serviceAccountName: {{ .Release.Name }}-api
+      containers:
+        - name: api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/sh"]
+          args: ["-c", "source /vault/secrets/db-creds && npm start"]
+          ports:
+            - containerPort: 3000
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /api/status
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /api/status
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
