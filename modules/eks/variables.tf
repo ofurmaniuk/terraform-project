@@ -21,7 +21,7 @@ variable "public_subnet_ids" {
 variable "kubernetes_version" {
   description = "Kubernetes version"
   type        = string
-  default     = "1.27"
+  default     = "1.28"
 }
 
 variable "node_group_desired_size" {
