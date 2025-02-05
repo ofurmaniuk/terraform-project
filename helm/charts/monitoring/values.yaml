@@ -19,7 +19,8 @@ prometheus:
         memory: 256Mi
 
 grafana:
-  persistence:  # ✅ Indented under `grafana`
+  persistence:  
+    type: pvc 
     enabled: true
     size: 2Gi
   service:
