@@ -11,7 +11,7 @@ fullnameOverride: ""
 
 serviceAccount:
   create: true
-  name: ""
+  name: "api-sa"
 
 service:
   type: ClusterIP
