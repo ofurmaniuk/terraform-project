@@ -236,6 +236,8 @@ path "secret/data/database" {
 }
 EOF
 
+
+
 # Create role for your API service account (matches your k8s namespace)
 vault write auth/kubernetes/role/api \
     bound_service_account_names=api-sa \
