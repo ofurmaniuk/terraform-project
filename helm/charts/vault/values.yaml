@@ -6,14 +6,14 @@ vault:
   injector:
     enabled: true
     replicas: 1
-    port: 443
+    port: 8080  # Changed from 443
     webhook:
-      port: 443
+      port: 8080  # Changed from 443
       failurePolicy: Fail 
       timeoutSeconds: 30
     service:
       port: 443
-      targetPort: 443
+      targetPort: 8080  # Changed to match container port
     resources:
       requests:
         cpu: 25m
