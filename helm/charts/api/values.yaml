@@ -39,3 +39,15 @@ readinessProbe:
     port: 3000
   initialDelaySeconds: 5
   periodSeconds: 10
+
+vault:
+  role: "api"
+  secretPath: "secret/data/database"
+  template: |
+    {{`{{- with secret "secret/data/database" -}}
+    export DBHOST="{{ .Data.data.host }}"
+    export DBUSER="{{ .Data.data.username }}"
+    export DBPASS="{{ .Data.data.password }}"
+    export DBPORT="{{ .Data.data.port }}"
+    export DB="{{ .Data.data.dbname }}"
+    {{- end }}`}}
