@@ -1,3 +1,4 @@
+# helm/charts/api/values.yaml
 replicaCount: 1
 
 image:
@@ -5,12 +6,12 @@ image:
   tag: latest
   pullPolicy: Always
 
-serviceAccount:
-  name: api-sa  # Match this with Vault configuration
+nameOverride: ""
+fullnameOverride: ""
 
-vault:
-  secretPath: "secret/data/database"  # Match your KV path
-  role: "api"  # Match the role name in Vault
+serviceAccount:
+  create: true
+  name: ""
 
 service:
   type: ClusterIP
@@ -24,3 +25,17 @@ resources:
   requests:
     cpu: 100m
     memory: 128Mi
+
+livenessProbe:
+  httpGet:
+    path: /api/status
+    port: 3000
+  initialDelaySeconds: 15
+  periodSeconds: 20
+
+readinessProbe:
+  httpGet:
+    path: /api/status
+    port: 3000
+  initialDelaySeconds: 5
+  periodSeconds: 10

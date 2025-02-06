@@ -211,16 +211,37 @@ vault operator unseal KEY3
 # Authenticate with root token
 vault login ROOT_TOKEN
 
-# Enable KV secrets engine
+# Enable KV2 secrets engine for your project
 vault secrets enable -path=secret kv-v2
 
-# Store DB credentials
-vault kv put secret/api/db-creds \
-    host=production-aurora-instance.cdpxotwegnsy.us-east-2.rds.amazonaws.com \
-    username=dbadmin \
-    password=password \
-    port=5432 \
-    dbname=mydatabase
+# Create secret with your Aurora DB credentials
+vault kv put secret/database \
+    username="dbadmin" \
+    password="password" \
+    host="production-aurora-cluster.cluster-cdpxotwegnsy.us-east-2.rds.amazonaws.com" \
+    port="5432" \
+    dbname="mydatabase"
+
+# Enable Kubernetes auth if not already enabled
+vault auth enable kubernetes
+
+# Configure Kubernetes auth for your EKS cluster
+vault write auth/kubernetes/config \
+    kubernetes_host="https://kubernetes.default.svc"
+
+# Create policy for your API access
+vault policy write api-policy - <<EOF
+path "secret/data/database" {
+  capabilities = ["read"]
+}
+EOF
+
+# Create role for your API service account (matches your k8s namespace)
+vault write auth/kubernetes/role/api \
+    bound_service_account_names=api-sa \
+    bound_service_account_namespaces=production \
+    policies=api-policy \
+    ttl=1h
 
 kubectl get svc -n vault vault-ui -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
 http://<your-load-balancer-url>:8200
@@ -229,7 +250,10 @@ http://<your-load-balancer-url>:8200
 
 ```shell
 kubectl apply -f k8s/argocd/applications/main/api.yaml
+``` 
 
+helm/charts/api/*
+helm/charts/api/templates/*
 
 ```shell
 
@@ -292,3 +316,7 @@ if i do it via terraform - it meants i use declarative method of resources creat
 Ansible is a IaC tool and it declarative way to install software and configure system/network on VMs 
 example: 
 on Digital ocean we created a Centoes machine/VM and using ansible playbooks to ....
+
+
+
+
