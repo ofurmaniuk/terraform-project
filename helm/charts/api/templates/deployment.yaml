@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-api
+  name: {{ include "api.fullname" . }}
   labels:
     {{- include "api.labels" . | nindent 4 }}
 spec:
@@ -15,38 +15,45 @@ spec:
         {{- include "api.selectorLabels" . | nindent 8 }}
       annotations:
         vault.hashicorp.com/agent-inject: "true"
-        vault.hashicorp.com/agent-inject-status: "update"
-        vault.hashicorp.com/role: "api"
-        vault.hashicorp.com/agent-inject-secret-db-creds: {{ .Values.vault.secretPath }}
+        vault.hashicorp.com/role: {{ .Values.vault.role | quote }}
+        vault.hashicorp.com/agent-inject-secret-db-creds: {{ .Values.vault.secretPath | quote }}
         vault.hashicorp.com/agent-inject-template-db-creds: |
-          {{`{{- with secret "${vault.secretPath}" -}}
-          export DBHOST="{{ .Data.data.host }}"
+          {{`{{- with secret "secret/data/database" -}}
+          export DBHOST="production-aurora-cluster.cluster-cdpxotwegnsy.us-east-2.rds.amazonaws.com"
           export DBUSER="{{ .Data.data.username }}"
           export DBPASS="{{ .Data.data.password }}"
-          export DBPORT="{{ .Data.data.port }}"
+          export DBPORT="5432"
           export DB="{{ .Data.data.dbname }}"
           {{- end }}`}}
     spec:
-      serviceAccountName: {{ .Release.Name }}-api
+      serviceAccountName: {{ .Values.serviceAccount.name }}
       containers:
         - name: api
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["/bin/sh"]
-          args: ["-c", "source /vault/secrets/db-creds && npm start"]
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              while [ ! -f /vault/secrets/db-creds ]; do
+                echo "Waiting for Vault secrets..."
+                sleep 2
+              done
+              source /vault/secrets/db-creds && npm start
           ports:
-            - containerPort: 3000
+            - name: http
+              containerPort: 3000
+              protocol: TCP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:
             httpGet:
               path: /api/status
-              port: 3000
+              port: http
             initialDelaySeconds: 15
             periodSeconds: 20
           readinessProbe:
             httpGet:
               path: /api/status
-              port: 3000
+              port: http
             initialDelaySeconds: 5
             periodSeconds: 10

@@ -211,10 +211,25 @@ vault operator unseal KEY3
 # Authenticate with root token
 vault login ROOT_TOKEN
 
+# Enable KV secrets engine
+vault secrets enable -path=secret kv-v2
+
+# Store DB credentials
+vault kv put secret/api/db-creds \
+    host=production-aurora-instance.cdpxotwegnsy.us-east-2.rds.amazonaws.com \
+    username=dbadmin \
+    password=password \
+    port=5432 \
+    dbname=mydatabase
+
 kubectl get svc -n vault vault-ui -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
 http://<your-load-balancer-url>:8200
 # use token and root token as password 
 ``` 
+
+```shell
+kubectl apply -f k8s/argocd/applications/main/api.yaml
+
 
 ```shell
 

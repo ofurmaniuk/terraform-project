@@ -5,9 +5,12 @@ image:
   tag: latest
   pullPolicy: Always
 
+serviceAccount:
+  name: api-sa  # Match this with Vault configuration
+
 vault:
-  enabled: true
-  secretPath: secret/data/api/db-creds
+  secretPath: "secret/data/database"  # Match your KV path
+  role: "api"  # Match the role name in Vault
 
 service:
   type: ClusterIP

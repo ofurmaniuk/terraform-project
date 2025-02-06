@@ -1,4 +1,4 @@
 apiVersion: v2
 name: api
-description: API application Helm chart
+description: API application with Vault integration
 version: 0.1.0
