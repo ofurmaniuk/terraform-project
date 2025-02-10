@@ -211,6 +211,15 @@ vault operator unseal KEY3
 # Authenticate with root token
 vault login ROOT_TOKEN
 
+
+kubectl delete application vault -n argocd
+kubectl delete namespace vault --force --grace-period=0
+kubectl apply -f k8s/argocd/applications/main/vault.yaml
+
+
+
+
+
 # Enable KV2 secrets engine for your project
 vault secrets enable -path=secret kv-v2
 
@@ -235,7 +244,6 @@ path "secret/data/database" {
   capabilities = ["read"]
 }
 EOF
-
 
 
 # Create role for your API service account (matches your k8s namespace)
@@ -322,3 +330,10 @@ on Digital ocean we created a Centoes machine/VM and using ansible playbooks to 
 
 
 
+Resource not found in cluster: rbac.authorization.k8s.io/v1/ClusterRole:api-vault-agent-injector-clusterrole
+
+Resource not found in cluster: apps/v1/StatefulSet:api-vault
+
+Resource not found in cluster: admissionregistration.k8s.io/v1/MutatingWebhookConfiguration:api-vault-agent-injector-cfg
+
+Resource not found in cluster: v1/ConfigMap:api-vault-config
