@@ -23,7 +23,7 @@ spec:
           export DBUSER="{{ .Data.data.username }}"
           export DBPASS="{{ .Data.data.password }}"
           export DBPORT="{{ .Data.data.port }}"
-          export DB="{{ .Data.data.dbname }}"
+          export DB="{{ .Data.data.name }}"
           {{- end }}`}}
         vault.hashicorp.com/agent-pre-populate-only: "true"
         vault.hashicorp.com/agent-run-as-same-user: "true"

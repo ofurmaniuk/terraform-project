@@ -40,12 +40,6 @@ readinessProbe:
   initialDelaySeconds: 5
   periodSeconds: 10
 
-database: 
-  host: "production-aurora-instance.cdpxotwegnsy.us-east-2.rds.amazonaws.com"
-  port: "5432"
-  name: "mydatabase"
-
-
-    
-
+vault:
+  role: "production-vault-role"
     
