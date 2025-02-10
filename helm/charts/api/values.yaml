@@ -51,3 +51,7 @@ vault:
     export DBPORT="{{ .Data.data.port }}"
     export DB="{{ .Data.data.dbname }}"
     {{- end }}`}}
+
+    
+
+    helm/charts/api/templates/deployment.yaml:
