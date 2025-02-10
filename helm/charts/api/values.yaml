@@ -42,9 +42,9 @@ readinessProbe:
 
 vault:
   role: "api"
-  secretPath: "secret/data/database"
+  secretPath: "secret/database"  
   template: |
-    {{`{{- with secret "secret/data/database" -}}
+    {{`{{- with secret "secret/database" -}}
     export DBHOST="{{ .Data.data.host }}"
     export DBUSER="{{ .Data.data.username }}"
     export DBPASS="{{ .Data.data.password }}"
