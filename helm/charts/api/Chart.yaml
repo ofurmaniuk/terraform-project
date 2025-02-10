@@ -5,8 +5,3 @@ version: 0.1.0
 type: application
 appVersion: "1.0.0"
 
-dependencies:
-  - name: vault
-    version: "0.25.0"
-    repository: "https://helm.releases.hashicorp.com"
-    condition: vault.enabled
