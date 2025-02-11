@@ -7,7 +7,7 @@ image:
   pullPolicy: Always
 
 nameOverride: ""
-fullnameOverride: ""
+fullnameOverride: "api"
 
 serviceAccount:
   create: true
