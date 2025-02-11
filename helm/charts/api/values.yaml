@@ -42,4 +42,8 @@ readinessProbe:
 
 vault:
   role: "api"
+
+database:
+  host: "production-aurora-cluster.cluster-cdpxotwegnsy.us-east-2.rds.amazonaws.com"
+  port: "5432"
     

@@ -231,7 +231,7 @@ vault operator unseal KEY2
 vault operator unseal KEY3
 
 # Authenticate with root token
-vault login ROOT_TOKEN
+ vault login ROOT_TOKEN
 ``` 
 
 ```shell
