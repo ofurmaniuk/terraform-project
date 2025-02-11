@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "api.fullname" . }}
+  name: {{ .Release.Name }}-svc  # Changed from that fancy helper crap
   labels:
     {{- include "api.labels" . | nindent 4 }}
 spec:
@@ -13,4 +13,3 @@ spec:
       name: http
   selector:
     {{- include "api.selectorLabels" . | nindent 4 }}
-

@@ -1,24 +1,13 @@
-# Add this as rbac.yaml in helm/charts/api/templates/
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: api-vault-auth
-  namespace: production
-rules:
-- apiGroups: [""]
-  resources: ["serviceaccounts/token"]
-  verbs: ["create"]
----
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: api-vault-auth-binding
+  name: api-role-binding
   namespace: production
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: api-vault-auth
+  name: api-role
 subjects:
-- kind: ServiceAccount
-  name: api-sa
-  namespace: production
+  - kind: ServiceAccount
+    name: api-sa
+    namespace: production
