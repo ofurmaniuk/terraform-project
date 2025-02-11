@@ -167,24 +167,12 @@ git push
 ```shell
 # Log in to your cluster
 aws eks update-kubeconfig --name production-cluster --region us-east-2
+
+# ========== ArgoCD ===========#
 # Get service ( get argocd-server address)
 kubectl get svc -n argocd
 # Get the initial admin password
 kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 -d
-# Apply csi- driver that allows to create persisten volumes 
-kubectl apply -f k8s/argocd/applications/main/aws-ebs-csi-driver.yaml
-# Downloads dependencies for monitoring stack 
-cd helm/charts/monitoring && helm dependency build && cd ../../..
-# Apply manifest of monitoring stack ( list of programs)
-kubectl apply -f k8s/argocd/applications/main/monitoring.yaml
-kubectl apply -f k8s/argocd/applications/main/ingress-nginx.yaml
-kubectl apply -f k8s/argocd/applications/main/metrics-server.yaml
-kubectl apply -f k8s/argocd/applications/main/vault.yaml
-# Delete everything in namespace monitoring 
-kubectl delete all --all -n monitoring
-
-kubectl delete pod "pod name" -n monitoring --force --grace-period=0
-
 
 # =============== Grafana =============== #
 
@@ -192,11 +180,45 @@ kubectl delete pod "pod name" -n monitoring --force --grace-period=0
 kubectl get svc -n monitoring 
 # Check Grafana password 
 kubectl get secret --namespace monitoring monitoring-grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
+# dashbord for prometheus 1860 
+# dashboard for loki 15141
+# dashboard for Falco 11914 
 
-kubectl delete ns argocd 
+# ============= AWS-ebs-csi-driver ============= # 
+# Downloads dependencies for aws-ebs-csi-driver
+cd helm/charts/aws-ebs-csi-driver && helm dependency build && cd ../../..
+# Apply csi- driver that allows to create persisten volumes 
+kubectl apply -f k8s/argocd/applications/main/aws-ebs-csi-driver.yaml
+
+# ============= Monitoring ============= # 
+# Downloads dependencies for monitoring stack 
+cd helm/charts/monitoring && helm dependency build && cd ../../..
+# Apply manifest of monitoring stack ( list of programs)
+kubectl apply -f k8s/argocd/applications/main/monitoring.yaml
+
+# ============= Ingress-nginx ============= # 
+# Downloads dependencies for ingress-nginx
+cd helm/charts/ingress-nginx && helm dependency build && cd ../../..
+# Apply manifest of ingress-nginx 
+kubectl apply -f k8s/argocd/applications/main/ingress-nginx.yaml 
+
+# ============= Metrics-server ============= # 
+# Downloads dependencies for metrics-server
+cd helm/charts/metrics-server && helm dependency build && cd ../../..
+# Apply manifest of metrics-server
+kubectl apply -f k8s/argocd/applications/main/metrics-server.yaml 
+```
 
 ```shell
-# =============== Vault ====================== #
+# ============= Vault ============= # 
+# Get your vault svc 
+kubectl get svc -n vault vault-ui -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+http://<your-load-balancer-url>:8200
+# use token and root token as password
+
+# Downloads dependencies for vault 
+cd helm/charts/vault && helm dependency build && cd ../../..
+# Apply manifest of vault 
 kubectl apply -f k8s/argocd/applications/main/vault.yaml
 
 # Initialize Vault and get unsealing keys - CRITICAL: BACKUP THESE KEYS!
@@ -210,16 +232,9 @@ vault operator unseal KEY3
 
 # Authenticate with root token
 vault login ROOT_TOKEN
+``` 
 
-
-kubectl delete application vault -n argocd
-kubectl delete namespace vault --force --grace-period=0
-kubectl apply -f k8s/argocd/applications/main/vault.yaml
-
-
-
-
-
+```shell
 # Enable KV2 secrets engine for your project
 vault secrets enable -path=secret kv-v2
 
@@ -245,65 +260,36 @@ path "secret/data/database" {
 }
 EOF
 
-
 # Create role for your API service account (matches your k8s namespace)
 vault write auth/kubernetes/role/api \
     bound_service_account_names=api-sa \
     bound_service_account_namespaces=production \
     policies=api-policy \
     ttl=1h
+``` 
 
-kubectl get svc -n vault vault-ui -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
-http://<your-load-balancer-url>:8200
-# use token and root token as password 
+
+```shell
+kubectl delete application vault -n argocd
+kubectl delete namespace vault --force --grace-period=0
+
 ``` 
 
 ```shell
 kubectl apply -f k8s/argocd/applications/main/api.yaml
 ``` 
 
-helm/charts/api/*
-helm/charts/api/templates/*
-
-```shell
-
-# ============ Ingress-Nginx ============= # 
-
-cd helm/charts/ingress-nginx && helm dependency build && cd ../../..
-kubectl apply -f k8s/argocd/applications/main/ingress-nginx.yaml 
-
-# ============= Metrics-Server ============ #
-cd helm/charts/metrics-server && helm dependency build && cd ../../..
 
 
-# ============= Falco ============== #
+`
 
-
-
-cd helm/charts/monitoring
-helm dependency update .
-helm install monitoring . -n monitoring
-helm upgrade monitoring . -n monitoring
-
-
-# Add Helm repositories
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo add grafana https://grafana.github.io/helm-charts
-helm repo update
- 
-# Downloads dependencies for monitoring stack 
-cd helm/charts/monitoring && helm dependency build && cd ../../..
-# Download dependencies for CSI
-helm repo add aws-ebs-csi-driver https://kubernetes-sigs.github.io/aws-ebs-csi-driver
-helm repo update
-cd helm/charts/aws-ebs-csi-driver && helm dependency build && cd ../../..
-
-# dashbord for prometheus 1860 
-# dashboard for loki 15141
-# dashboard for Falco 11914 
-```
-
- 
+ Useful commands 
+# Delete everything in namespace monitoring 
+kubectl delete all --all -n monitoring
+# Delete a pod 
+kubectl delete pod "pod name" -n monitoring --force --grace-period=0
+# Delete a ns 
+kubectl delete ns <namespace name>
 
 # ====================== Loki ================== #
 # installed thought Argo 
@@ -328,12 +314,3 @@ example:
 on Digital ocean we created a Centoes machine/VM and using ansible playbooks to ....
 
 
-
-
-Resource not found in cluster: rbac.authorization.k8s.io/v1/ClusterRole:api-vault-agent-injector-clusterrole
-
-Resource not found in cluster: apps/v1/StatefulSet:api-vault
-
-Resource not found in cluster: admissionregistration.k8s.io/v1/MutatingWebhookConfiguration:api-vault-agent-injector-cfg
-
-Resource not found in cluster: v1/ConfigMap:api-vault-config

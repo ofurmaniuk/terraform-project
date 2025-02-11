@@ -41,5 +41,5 @@ readinessProbe:
   periodSeconds: 10
 
 vault:
-  role: "production-vault-role"
+  role: "api"
     
