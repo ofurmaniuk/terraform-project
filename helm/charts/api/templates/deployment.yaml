@@ -30,7 +30,7 @@ spec:
         vault.hashicorp.com/agent-run-as-same-user: "true"
         vault.hashicorp.com/preserve-secret-case: "true"
     spec:
-      serviceAccountName: {{ include "api.serviceAccountName" . }}
+      serviceAccountName: api-sa
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"

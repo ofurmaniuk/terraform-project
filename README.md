@@ -239,7 +239,7 @@ vault login ROOT_TOKEN
 vault secrets enable -path=secret kv-v2
 
 # Create secret with your Aurora DB credentials
-vault kv put secret/database \
+vault kv put secret/data/database \
     username="dbadmin" \
     password="password" \
     host="production-aurora-cluster.cluster-cdpxotwegnsy.us-east-2.rds.amazonaws.com" \
