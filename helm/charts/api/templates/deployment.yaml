@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}
+  name: {{ .Release.Name }}  # Simplified from include "api.fullname"
   labels:
     {{- include "api.labels" . | nindent 4 }}
 spec:
@@ -15,17 +15,19 @@ spec:
         {{- include "api.selectorLabels" . | nindent 8 }}
       annotations:
         vault.hashicorp.com/agent-inject: "true"
-        vault.hashicorp.com/role: {{ .Values.vault.role | quote }}
+        vault.hashicorp.com/role: "api"
         vault.hashicorp.com/agent-inject-secret-database: "secret/data/database"
         vault.hashicorp.com/agent-inject-template-database: |
-          #!/bin/sh
-          {{`{{- with secret "secret/data/database" }}
-          export DBUSER="{{ .Data.data.username }}"
-          export DBPASS="{{ .Data.data.password }}"
-          export DB="{{ .Data.data.dbname }}"
-          {{- end }}`}}
+            #!/bin/sh
+            {{`{{- with secret "secret/data/database" }}
+            export DBUSER="{{ .Data.data.username }}"
+            export DBPASS="{{ .Data.data.password }}"
+            export DB="{{ .Data.data.dbname }}"
+            {{- end }}`}}
+            export DBHOST="{{ .Values.database.host }}"
+            export DBPORT="{{ .Values.database.port }}"
     spec:
-      serviceAccountName: {{ .Values.serviceAccount.name }}
+      serviceAccountName: api-sa
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default "latest" }}"
@@ -33,10 +35,17 @@ spec:
           command: ["/bin/sh", "-c"]
           args:
             - |
-              source /vault/secrets/database
-              export DBHOST="{{ .Values.database.host }}"
-              export DBPORT="{{ .Values.database.port }}"
+              source /vault/secrets/database && \
+              export DBHOST="{{ .Values.database.host }}" && \
+              export DBPORT="{{ .Values.database.port }}" && \
               npm start
+          env:
+            - name: PORT
+              value: "{{ .Values.service.targetPort }}"
+            - name: DBHOST
+              value: "{{ .Values.database.host }}"
+            - name: DBPORT
+              value: "{{ .Values.database.port }}"
           ports:
             - name: http
               containerPort: {{ .Values.service.targetPort }}
