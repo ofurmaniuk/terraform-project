@@ -20,10 +20,3 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-    ignoreDifferences:
-      - group: ""
-        kind: Deployment
-        name: api-vault-0
-      - group: ""
-        kind: Deployment
-        name: api-vault-agent-injector-66f4c45c5c-vwq42
