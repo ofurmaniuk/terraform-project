@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}  # Simplified from include "api.fullname"
+  name: {{ .Release.Name }}
   labels:
     {{- include "api.labels" . | nindent 4 }}
 spec:
@@ -17,16 +17,14 @@ spec:
         vault.hashicorp.com/agent-inject: "true"
         vault.hashicorp.com/role: "api"
         vault.hashicorp.com/agent-inject-secret-database: "secret/data/database"
-        vault.hashicorp.com/addr: "http://vault.vault:8200"
+        vault.hashicorp.com/service: "http://vault.vault:8200"
         vault.hashicorp.com/agent-inject-template-database: |
-            #!/bin/sh
-            {{`{{- with secret "secret/data/database" }}
-            export DBUSER="{{ .Data.data.username }}"
-            export DBPASS="{{ .Data.data.password }}"
-            export DB="{{ .Data.data.dbname }}"
-            {{- end }}`}}
-            export DBHOST="{{ .Values.database.host }}"
-            export DBPORT="{{ .Values.database.port }}"
+          #!/bin/sh
+          {{`{{- with secret "secret/data/database" }}
+          export DBUSER="{{ .Data.data.username }}"
+          export DBPASS="{{ .Data.data.password }}"
+          export DB="{{ .Data.data.dbname }}"
+          {{- end }}`}}
     spec:
       serviceAccountName: api-sa
       containers:
@@ -36,21 +34,11 @@ spec:
           command: ["/bin/sh", "-c"]
           args:
             - |
-              source /vault/secrets/database && \
-              export DBHOST="{{ .Values.database.host }}" && \
-              export DBPORT="{{ .Values.database.port }}" && \
+              source /vault/secrets/database
               npm start
-          env:
-            - name: PORT
-              value: "{{ .Values.service.targetPort }}"
-            - name: DBHOST
-              value: "{{ .Values.database.host }}"
-            - name: DBPORT
-              value: "{{ .Values.database.port }}"
           ports:
             - name: http
               containerPort: {{ .Values.service.targetPort }}
-              protocol: TCP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- with .Values.livenessProbe }}

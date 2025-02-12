@@ -39,10 +39,6 @@ readinessProbe:
   initialDelaySeconds: 5
   periodSeconds: 10
 
-vault:
-  address: http://vault.vault.svc.cluster.local:8200
-  role: "api"
-
 database:
   host: "production-aurora-cluster.cluster-cdpxotwegnsy.us-east-2.rds.amazonaws.com"
   port: "5432"
