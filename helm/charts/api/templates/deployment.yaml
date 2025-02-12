@@ -34,10 +34,11 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["/bin/sh"]
           args:
-            |
-            source /vault/secrets/database
-            echo "Database connection string: ${DBUSER}:${DBPASS}@${DBHOST}:${DBPORT}/${DB}"
-            exec npm start
+            - -c
+            - |
+              source /vault/secrets/database
+              echo "Database connection string: $DBUSER:$DBPASS@$DBHOST:$DBPORT/$DB"
+              npm start
           ports:
             - name: http
               containerPort: {{ .Values.service.targetPort }}
