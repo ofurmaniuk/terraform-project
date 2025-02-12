@@ -19,27 +19,34 @@ spec:
         vault.hashicorp.com/agent-inject-secret-database: "secret/data/database"
         vault.hashicorp.com/agent-inject-template-database: |
           #!/bin/sh
-          {{`{{- with secret "secret/data/database" }}
+          {{- with secret "secret/data/database" }}
           export DBUSER="{{ .Data.data.username }}"
           export DBPASS="{{ .Data.data.password }}"
           export DB="{{ .Data.data.dbname }}"
-          {{- end }}`}}
+          export DBHOST="production-aurora-cluster.cluster-cdpxotwegnsy.us-east-2.rds.amazonaws.com"
+          export DBPORT="5432"
+          {{- end }}
     spec:
       serviceAccountName: api-sa
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default "latest" }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["/bin/sh", "-c"]
+          command: ["/bin/sh"]
           args:
+            - -c
             - |
-              source /vault/secrets/database
+              source /vault/secrets/database && \
+              echo "Database connection string: $DBHOST:$DBPORT" && \
               npm start
           ports:
             - name: http
               containerPort: {{ .Values.service.targetPort }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: PORT
+              value: "3000"
           {{- with .Values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}

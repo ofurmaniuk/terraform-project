@@ -238,8 +238,8 @@ vault operator unseal KEY3
 # Enable KV2 secrets engine for your project
 vault secrets enable -path=secret kv-v2
 
-# Create secret with your Aurora DB credentials
-vault kv put secret/data/database \
+# Create secret with your Aurora DB credentials (removed 'data' from path)
+vault kv put secret/database \
     username="dbadmin" \
     password="password" \
     host="production-aurora-cluster.cluster-cdpxotwegnsy.us-east-2.rds.amazonaws.com" \
@@ -249,22 +249,25 @@ vault kv put secret/data/database \
 # Enable Kubernetes auth if not already enabled
 vault auth enable kubernetes
 
-# Configure Kubernetes auth for your EKS cluster
+# Configure Kubernetes auth for your EKS cluster with complete config
 vault write auth/kubernetes/config \
-    kubernetes_host="https://kubernetes.default.svc"
+    kubernetes_host="https://kubernetes.default.svc" \
+    token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+    kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
+    issuer="https://kubernetes.default.svc.cluster.local"
 
-# Create policy for your API access
-vault policy write api-policy - <<EOF
+# Create policy for your API access (updated path)
+vault policy write api - <<EOF
 path "secret/data/database" {
   capabilities = ["read"]
 }
 EOF
 
-# Create role for your API service account (matches your k8s namespace)
+# Create role for your API service account (changed name to match pod annotation)
 vault write auth/kubernetes/role/api \
     bound_service_account_names=api-sa \
     bound_service_account_namespaces=production \
-    policies=api-policy \
+    policies=api \
     ttl=1h
 ``` 
 
