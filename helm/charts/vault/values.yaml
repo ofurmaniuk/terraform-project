@@ -1,40 +1,49 @@
 vault:
   global:
     enabled: true
-    tlsDisable: true
+    tlsDisable: true   # Keeping it simple for pet project
 
   injector:
-    enabled: true
+    enabled: true      # Required for API sidecar injection
     replicas: 1
-    
     resources:
       requests:
-        cpu: 25m
-        memory: 32Mi
+        cpu: 100m      
+        memory: 128Mi
       limits:
-        cpu: 50m
-        memory: 64Mi
+        cpu: 200m
+        memory: 256Mi
 
   server:
-    annotations:
-      avp.kubernetes.io/path: "secret/data/vault"
     dataStorage:
       enabled: true
       size: 1Gi
       storageClass: "gp2"
       accessMode: ReadWriteOnce
+
     standalone:
       enabled: true
       config: |
         ui = true
+        
         listener "tcp" {
           tls_disable = 1
           address = "[::]:8200"
           cluster_address = "[::]:8201"
         }
+
         storage "file" {
           path = "/vault/data"
         }
+
+        # Important for API auth
+        auth {
+          kubernetes {
+            role = "api"
+            disable_local_ca_jwt = false
+          }
+        }
+
         audit {
           enabled = true
           type    = "file"
@@ -42,33 +51,25 @@ vault:
             file_path = "/vault/logs/audit.log"
           }
         }
+
     service:
       enabled: true
-      type: LoadBalancer
-      annotations:
-        service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+      type: ClusterIP
       port: 8200
+
     resources:
       requests:
-        cpu: 50m
-        memory: 64Mi
+        cpu: 200m
+        memory: 256Mi
       limits:
-        cpu: 100m
-        memory: 128Mi
-    serviceAccount:
-      create: true
-      annotations:
-        eks.amazonaws.com/role-arn: arn:aws:iam::${AWS_ACCOUNT_ID}:role/production-vault-role
+        cpu: 400m
+        memory: 512Mi
 
     extraEnvironmentVars:
-      VAULT_ADDR: "http://127.0.0.1:8200"
-      VAULT_API_ADDR: "http://127.0.0.1:8200"
-      VAULT_LOG_LEVEL: "debug"
+      VAULT_ADDR: "http://vault.vault.svc.cluster.local:8200"
+      VAULT_LOG_LEVEL: "info"
+      VAULT_K8S_AUTH_PATH: "kubernetes"  # Important for API auth
 
   ui:
     enabled: true
-    serviceType: LoadBalancer
-    annotations:
-      service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
-    externalPort: 8200
-    targetPort: 8200
+    serviceType: ClusterIP
