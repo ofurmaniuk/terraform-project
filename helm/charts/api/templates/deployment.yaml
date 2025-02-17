@@ -16,7 +16,7 @@ spec:
       annotations:
         vault.hashicorp.com/agent-inject: "true"
         vault.hashicorp.com/role: "api"
-        vault.hashicorp.com/agent-inject-secret-database: "secret/database"  # Removed data
+        vault.hashicorp.com/agent-inject-secret-database: "secret/data/database"  # Fixed to match template path
         vault.hashicorp.com/agent-inject-template-database: |
           #!/bin/sh
           {{`{{- with secret "secret/data/database" }}`}}
@@ -36,9 +36,10 @@ spec:
           args:
             - -c
             - |
-              source /vault/secrets/database && \
-              echo "Database connection string: $DBUSER:$DBPASS@$DBHOST:$DBPORT/$DB" && \
-              npm start
+              set -e
+              source /vault/secrets/database
+              echo "Database connection string: $DBUSER:$DBPASS@$DBHOST:$DBPORT/$DB"
+              exec npm start
           ports:
             - name: http
               containerPort: {{ .Values.service.targetPort }}
