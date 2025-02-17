@@ -28,7 +28,6 @@ resources:
 livenessProbe:
   httpGet:
     path: /api/status
-    port: 3000
   initialDelaySeconds: 30  # Increased from 15
   periodSeconds: 20
   timeoutSeconds: 5  # Increased from 1
@@ -37,7 +36,6 @@ livenessProbe:
 readinessProbe:
   httpGet:
     path: /api/status
-    port: 3000
   initialDelaySeconds: 20  # Increased from 5
   periodSeconds: 10
   timeoutSeconds: 5  # Increased from 1
