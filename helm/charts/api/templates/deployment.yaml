@@ -1,67 +1,100 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: api
-  labels:
-    {{- include "api.labels" . | nindent 4 }}
+  name: api-deployment
+  namespace: production
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: 1
   selector:
     matchLabels:
-      {{- include "api.selectorLabels" . | nindent 6 }}
+      app: api
   template:
     metadata:
       labels:
-        {{- include "api.selectorLabels" . | nindent 8 }}
+        app: api
       annotations:
         vault.hashicorp.com/agent-inject: "true"
         vault.hashicorp.com/role: "api"
         vault.hashicorp.com/agent-inject-secret-database: "secret/data/database"
         vault.hashicorp.com/agent-inject-template-database: |
           #!/bin/sh
-          {{`{{- with secret "secret/data/database" }}
+          {{`{{- with secret "secret/data/database" }}`}}
           export DBUSER="{{ .Data.data.username }}"
           export DBPASS="{{ .Data.data.password }}"
           export DB="{{ .Data.data.dbname }}"
-          {{- end }}`}}
+          {{`{{- end }}`}}
     spec:
       serviceAccountName: api-sa
       containers:
-        - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default "latest" }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["/bin/sh", "-c"]
+        - name: api
+          image: ofurmaniuk/app-api:latest
+          command: ["/bin/sh"]
           args:
+            - -c
             - |
-              source /vault/secrets/database || echo "Failed to source DB credentials"
+              set -e
+              . /vault/secrets/database
+              echo "Database credentials loaded"
+              echo "DBUSER: $DBUSER"
+              echo "DB: $DB"
+              echo "DBHOST: $DBHOST"
               export DBHOST="production-aurora-cluster.cluster-cdpxotwegnsy.us-east-2.rds.amazonaws.com"
               export DBPORT="5432"
               echo "Starting API server..."
-              exec npm start
+              exec node ./src/bin/www
           ports:
-            - name: http
-              containerPort: 3000
-              protocol: TCP
-          resources:
-            limits:
-              cpu: 200m
-              memory: 256Mi
-            requests:
-              cpu: 100m
-              memory: 128Mi
-          livenessProbe:
+            - containerPort: 3000
+          env:
+            - name: PORT
+              value: "3000"
+          envFrom:
+            - configMapRef:
+                name: api-config
+          readinessProbe:
             httpGet:
               path: /api/status
               port: 3000
             initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 5
+          livenessProbe:
+            httpGet:
+              path: /api/status
+              port: 3000
+            initialDelaySeconds: 90
             periodSeconds: 30
-            timeoutSeconds: 5
+            timeoutSeconds: 10
             failureThreshold: 3
-          readinessProbe:
+          startupProbe:
             httpGet:
               path: /api/status
               port: 3000
             initialDelaySeconds: 30
             periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 3
+            failureThreshold: 30
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          volumeMounts:
+            - name: vault-secrets
+              mountPath: /vault/secrets
+              readOnly: true
+      volumes:
+        - name: vault-secrets
+          emptyDir:
+            medium: Memory
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+  namespace: production
+data:
+  DBHOST: "production-aurora-cluster.cluster-cdpxotwegnsy.us-east-2.rds.amazonaws.com"
+  DBPORT: "5432"
