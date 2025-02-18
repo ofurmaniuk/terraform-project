@@ -1,0 +1,44 @@
+# values.yaml
+replicaCount: 1
+
+image:
+  repository: ofurmaniuk/app-web  
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 4000
+
+# API Service connection
+api:
+  host: "http://api-service"  
+  port: "80"
+
+resources:
+  limits:
+    cpu: 200m        
+    memory: 256Mi    
+  requests:
+    cpu: 100m        
+    memory: 128Mi    
+livenessProbe:
+  path: /
+  initialDelaySeconds: 15
+  periodSeconds: 20
+
+readinessProbe:
+  path: /
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /    
+  hosts:
+    - host: ""      
+      paths:
+        - path: /
+          pathType: Prefix

@@ -283,6 +283,9 @@ kubectl delete namespace vault --force --grace-period=0
  kubectl apply -f k8s/argocd/applications/main/api.yaml  
 
 kubectl delete -f k8s/argocd/applications/main/api.yaml --wait=false
+
+kubectl apply -f k8s/argocd/applications/main/web.yaml  
+
 ``` 
 
 
