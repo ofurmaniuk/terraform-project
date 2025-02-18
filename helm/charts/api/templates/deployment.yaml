@@ -1,20 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: api-deployment
-  namespace: production
+  name: {{ .Release.Name }}
+  labels:
+    {{- include "api.labels" . | nindent 4 }}
 spec:
-  replicas: 1
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: api
+      {{- include "api.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: api
+        {{- include "api.selectorLabels" . | nindent 8 }}
       annotations:
         vault.hashicorp.com/agent-inject: "true"
-        vault.hashicorp.com/role: "api"
+        vault.hashicorp.com/role: "{{ .Values.vault.role }}"
         vault.hashicorp.com/agent-inject-secret-database: "secret/data/database"
         vault.hashicorp.com/agent-inject-template-database: |
           #!/bin/sh
@@ -24,10 +25,11 @@ spec:
           export DB="{{ "{{" }} .Data.data.dbname {{ "}}" }}"
           {{ "{{" }}- end {{ "}}" }}
     spec:
-      serviceAccountName: api-sa
+      serviceAccountName: {{ .Values.serviceAccount.name }}
       containers:
-        - name: api
-          image: ofurmaniuk/app-api:latest
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default "latest" }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["/bin/sh"]
           args:
             - -c
@@ -35,35 +37,24 @@ spec:
               set -e
               . /vault/secrets/database
               echo "Database credentials loaded"
-              export DBHOST="production-aurora-cluster.cluster-cdpxotwegnsy.us-east-2.rds.amazonaws.com"
-              export DBPORT="5432"
+              export DBHOST="{{ .Values.database.host }}"
+              export DBPORT="{{ .Values.database.port }}"
               echo "Starting API server..."
               exec node ./src/bin/www
           ports:
-            - containerPort: 3000
-          envFrom:
-            - configMapRef:
-                name: api-config
-          readinessProbe:
-            httpGet:
-              path: /api/status
-              port: 3000
-            initialDelaySeconds: 60
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 5
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+          env:
+            - name: PORT
+              value: "{{ .Values.service.targetPort }}"
+          {{- with .Values.livenessProbe }}
           livenessProbe:
-            httpGet:
-              path: /api/status
-              port: 3000
-            initialDelaySeconds: 90
-            periodSeconds: 30
-            timeoutSeconds: 10
-            failureThreshold: 3
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           resources:
-            requests:
-              memory: "128Mi"
-              cpu: "100m"
-            limits:
-              memory: "256Mi"
-              cpu: "200m"
+            {{- toYaml .Values.resources | nindent 12 }}

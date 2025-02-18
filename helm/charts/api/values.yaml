@@ -6,7 +6,7 @@ image:
   pullPolicy: Always
 
 serviceAccount:
-  name: api-sa
+  name: "api-sa"
 
 service:
   type: ClusterIP
@@ -17,6 +17,9 @@ database:
   host: "production-aurora-cluster.cluster-cdpxotwegnsy.us-east-2.rds.amazonaws.com"
   port: "5432"
 
+vault:
+  role: "api"
+
 resources:
   limits:
     cpu: 200m
@@ -25,28 +28,20 @@ resources:
     cpu: 100m
     memory: 128Mi
 
-readinessProbe:
-  httpGet:
-    path: /api/status
-    port: 3000
-  initialDelaySeconds: 60
-  periodSeconds: 15
-  timeoutSeconds: 10
-  failureThreshold: 5
-
 livenessProbe:
   httpGet:
     path: /api/status
     port: 3000
-  initialDelaySeconds: 90
+  initialDelaySeconds: 60
   periodSeconds: 30
   timeoutSeconds: 10
   failureThreshold: 3
 
-startupProbe:
+readinessProbe:
   httpGet:
     path: /api/status
     port: 3000
   initialDelaySeconds: 30
   periodSeconds: 10
-  failureThreshold: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
