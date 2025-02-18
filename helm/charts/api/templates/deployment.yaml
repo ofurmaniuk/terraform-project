@@ -1,72 +1,67 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
- name: api-deployment
- namespace: production
+  name: api-deployment
+  namespace: production
 spec:
- replicas: 1
- selector:
-   matchLabels:
-     app: api
- template:
-   metadata:
-     labels:
-       app: api
-     annotations:
-       vault.hashicorp.com/agent-inject: "true"
-       vault.hashicorp.com/role: "api"
-       vault.hashicorp.com/agent-inject-secret-database: "secret/data/database"
-       vault.hashicorp.com/agent-inject-template-database: |
-         #!/bin/sh
-         {{ "{{" }}- with secret "secret/data/database" {{ "}}" }}
-         export DBUSER="{{ "{{" }} .Data.data.username {{ "}}" }}"
-         export DBPASS="{{ "{{" }} .Data.data.password {{ "}}" }}"
-         export DB="{{ "{{" }} .Data.data.dbname {{ "}}" }}"
-         {{ "{{" }}- end {{ "}}" }}
-         export DBHOST="{{ .Values.database.host }}"
-         export DBPORT="{{ .Values.database.port }}"
-   spec:
-     serviceAccountName: api-sa
-     containers:
-       - name: api
-         image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default "latest" }}"
-         imagePullPolicy: {{ .Values.image.pullPolicy }}
-         command: ["/bin/sh"]
-         args:
-           - -c
-           - |
-             set -e
-             . /vault/secrets/database
-             echo "Database credentials loaded"
-             echo "Starting API server..."
-             exec node ./src/bin/www
-         ports:
-           - name: http
-             containerPort: {{ .Values.service.targetPort }}
-             protocol: TCP
-         env:
-           - name: PORT
-             value: "{{ .Values.service.targetPort }}"
-         readinessProbe:
-           httpGet:
-             path: /api/status
-             port: 3000
-           initialDelaySeconds: 20
-           periodSeconds: 10
-           timeoutSeconds: 5
-           failureThreshold: 3
-         livenessProbe:
-           httpGet:
-             path: /api/status
-             port: 3000
-           initialDelaySeconds: 30
-           periodSeconds: 20
-           timeoutSeconds: 5
-           failureThreshold: 3
-         resources:
-           requests:
-             memory: "128Mi"
-             cpu: "100m"
-           limits:
-             memory: "256Mi"
-             cpu: "200m"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "api"
+        vault.hashicorp.com/agent-inject-secret-database: "secret/data/database"
+        vault.hashicorp.com/agent-inject-template-database: |
+          export DBUSER="{{ "{{" }} .Data.data.username {{ "}}" }}"
+          export DBPASS="{{ "{{" }} .Data.data.password {{ "}}" }}"
+          export DB="{{ "{{" }} .Data.data.dbname {{ "}}" }}"
+          export DBHOST="production-aurora-cluster.cluster-cdpxotwegnsy.us-east-2.rds.amazonaws.com"
+          export DBPORT="5432"
+    spec:
+      serviceAccountName: api-sa
+      containers:
+        - name: api
+          image: ofurmaniuk/app-api:latest
+          imagePullPolicy: Always
+          command: ["/bin/sh"]
+          args:
+            - -c
+            - |
+              set -x
+              echo "Loading database credentials..."
+              source /vault/secrets/database
+              echo "Verifying environment variables..."
+              env | grep DB
+              if [ -z "$DBUSER" ] || [ -z "$DBPASS" ] || [ -z "$DB" ] || [ -z "$DBHOST" ]; then
+                echo "Error: Database environment variables are not set correctly"
+                echo "Required variables: DBUSER, DBPASS, DB, DBHOST"
+                exit 1
+              fi
+              echo "Starting API server..."
+              exec node ./src/bin/www
+          env:
+            - name: PORT
+              value: "3000"
+          ports:
+            - containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /api/status
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 5
+          livenessProbe:
+            httpGet:
+              path: /api/status
+              port: 3000
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 10
+            failureThreshold: 5
