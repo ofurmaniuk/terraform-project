@@ -3,45 +3,34 @@ replicaCount: 1
 image:
   repository: ofurmaniuk/app-api
   tag: latest
-  pullPolicy: Always
-
-serviceAccount:
-  name: "api-sa"
+  pullPolicy: IfNotPresent
 
 service:
   type: ClusterIP
   port: 80
   targetPort: 3000
 
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+livenessProbe:
+  path: /api/status
+  initialDelaySeconds: 15
+  periodSeconds: 20
+
+readinessProbe:
+  path: /api/status
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
 database:
   host: "production-aurora-cluster.cluster-cdpxotwegnsy.us-east-2.rds.amazonaws.com"
   port: "5432"
+  name: "mydatabase"
 
-vault:
-  role: "api"
 
-resources:
-  limits:
-    cpu: 200m
-    memory: 256Mi
-  requests:
-    cpu: 100m
-    memory: 128Mi
-
-livenessProbe:
-  httpGet:
-    path: /api/status
-    port: 3000
-  initialDelaySeconds: 60
-  periodSeconds: 30
-  timeoutSeconds: 10
-  failureThreshold: 3
-
-readinessProbe:
-  httpGet:
-    path: /api/status
-    port: 3000
-  initialDelaySeconds: 30
-  periodSeconds: 10
-  timeoutSeconds: 5
-  failureThreshold: 3
