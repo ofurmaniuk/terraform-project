@@ -5,44 +5,48 @@ image:
   tag: latest
   pullPolicy: Always
 
-nameOverride: ""
-fullnameOverride: "api"
-
 serviceAccount:
-  create: true
-  name: "api-sa"
+  name: api-sa
 
 service:
   type: ClusterIP
   port: 80
   targetPort: 3000
 
+database:
+  host: "production-aurora-cluster.cluster-cdpxotwegnsy.us-east-2.rds.amazonaws.com"
+  port: "5432"
+
 resources:
   limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
     cpu: 100m
     memory: 128Mi
-  requests:
-    cpu: 50m
-    memory: 64Mi
-
-livenessProbe:
-  httpGet:
-    path: /api/status
-    port: 3000
-  initialDelaySeconds: 30  
-  periodSeconds: 20
-  timeoutSeconds: 5  
 
 readinessProbe:
   httpGet:
     path: /api/status
     port: 3000
-  initialDelaySeconds: 20  
-  periodSeconds: 10
-  timeoutSeconds: 5  
+  initialDelaySeconds: 60
+  periodSeconds: 15
+  timeoutSeconds: 10
+  failureThreshold: 5
+
+livenessProbe:
+  httpGet:
+    path: /api/status
+    port: 3000
+  initialDelaySeconds: 90
+  periodSeconds: 30
+  timeoutSeconds: 10
   failureThreshold: 3
 
-database:
-  host: "production-aurora-cluster.cluster-cdpxotwegnsy.us-east-2.rds.amazonaws.com"
-  port: "5432"
-  name: "mydatabase"
+startupProbe:
+  httpGet:
+    path: /api/status
+    port: 3000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  failureThreshold: 30

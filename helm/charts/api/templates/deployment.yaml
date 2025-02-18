@@ -1,33 +1,36 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: api-deployment
-  namespace: production
+  name: {{ include "api.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "api.labels" . | nindent 4 }}
 spec:
-  replicas: 1
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: api
+      {{- include "api.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: api
+        {{- include "api.selectorLabels" . | nindent 8 }}
       annotations:
         vault.hashicorp.com/agent-inject: "true"
         vault.hashicorp.com/role: "api"
         vault.hashicorp.com/agent-inject-secret-database: "secret/data/database"
         vault.hashicorp.com/agent-inject-template-database: |
           #!/bin/sh
-          {{`{{- with secret "secret/data/database" }}`}}
-          export DBUSER="{{ .Data.data.username }}"
-          export DBPASS="{{ .Data.data.password }}"
-          export DB="{{ .Data.data.dbname }}"
-          {{`{{- end }}`}}
+          {{ "{{" }}- with secret "secret/data/database" {{ "}}" }}
+          export DBUSER="{{ "{{" }} .Data.data.username {{ "}}" }}"
+          export DBPASS="{{ "{{" }} .Data.data.password {{ "}}" }}"
+          export DB="{{ "{{" }} .Data.data.dbname {{ "}}" }}"
+          {{ "{{" }}- end {{ "}}" }}
     spec:
-      serviceAccountName: api-sa
+      serviceAccountName: {{ .Values.serviceAccount.name }}
       containers:
-        - name: api
-          image: ofurmaniuk/app-api:latest
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default "latest" }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["/bin/sh"]
           args:
             - -c
@@ -35,66 +38,20 @@ spec:
               set -e
               . /vault/secrets/database
               echo "Database credentials loaded"
-              echo "DBUSER: $DBUSER"
-              echo "DB: $DB"
-              echo "DBHOST: $DBHOST"
-              export DBHOST="production-aurora-cluster.cluster-cdpxotwegnsy.us-east-2.rds.amazonaws.com"
-              export DBPORT="5432"
+              export DBHOST="{{ .Values.database.host }}"
+              export DBPORT="{{ .Values.database.port }}"
               echo "Starting API server..."
               exec node ./src/bin/www
           ports:
-            - containerPort: 3000
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
           env:
             - name: PORT
-              value: "3000"
-          envFrom:
-            - configMapRef:
-                name: api-config
+              value: "{{ .Values.service.targetPort }}"
           readinessProbe:
-            httpGet:
-              path: /api/status
-              port: 3000
-            initialDelaySeconds: 60
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 5
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
           livenessProbe:
-            httpGet:
-              path: /api/status
-              port: 3000
-            initialDelaySeconds: 90
-            periodSeconds: 30
-            timeoutSeconds: 10
-            failureThreshold: 3
-          startupProbe:
-            httpGet:
-              path: /api/status
-              port: 3000
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            failureThreshold: 30
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
           resources:
-            requests:
-              memory: "128Mi"
-              cpu: "100m"
-            limits:
-              memory: "256Mi"
-              cpu: "200m"
-          volumeMounts:
-            - name: vault-secrets
-              mountPath: /vault/secrets
-              readOnly: true
-      volumes:
-        - name: vault-secrets
-          emptyDir:
-            medium: Memory
-
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: api-config
-  namespace: production
-data:
-  DBHOST: "production-aurora-cluster.cluster-cdpxotwegnsy.us-east-2.rds.amazonaws.com"
-  DBPORT: "5432"
+            {{- toYaml .Values.resources | nindent 12 }}
