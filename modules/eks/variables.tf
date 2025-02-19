@@ -47,3 +47,4 @@ variable "node_group_instance_types" {
   type        = list(string)
   default     = ["t3.medium"]
 }
+
