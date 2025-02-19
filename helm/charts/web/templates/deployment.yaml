@@ -1,3 +1,4 @@
+# helm/charts/web/templates/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -18,26 +19,24 @@ spec:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default "latest" }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["node"]
-          args: ["./src/bin/www"]
           ports:
             - containerPort: {{ .Values.service.targetPort }}
           env:
             - name: PORT
               value: "{{ .Values.service.targetPort }}"
             - name: API_HOST
-              value: "{{ .Values.api.host }}"
+              value: "http://api-svc"  # Match your API service name exactly
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:
             httpGet:
-              path: {{ .Values.livenessProbe.path }}
+              path: /
               port: {{ .Values.service.targetPort }}
-            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
-            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+            initialDelaySeconds: 30  # Increased to give more startup time
+            periodSeconds: 20
           readinessProbe:
             httpGet:
-              path: {{ .Values.readinessProbe.path }}
+              path: /
               port: {{ .Values.service.targetPort }}
-            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
-            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+            initialDelaySeconds: 15  # Increased to give more startup time
+            periodSeconds: 10
