@@ -52,7 +52,3 @@ variable "az_b" {
   type        = string
 }
 
-variable "eks_node_security_group_id" {
-  description = "Security group ID of the EKS node group"
-  type        = string
-}

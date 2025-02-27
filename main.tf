@@ -18,7 +18,6 @@ module "rds" {
   private_subnet_ids            = values(module.vpc.private_subnets)
   web_security_group_id         = module.vpc.web_security_group_id
   eks_cluster_security_group_id = module.eks.cluster_security_group_id
-  eks_node_security_group_id    = module.eks.node_security_group_id # Add this line
   environment                   = var.environment
   db_name                       = var.db_name
   master_username               = var.master_username
