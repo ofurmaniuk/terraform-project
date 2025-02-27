@@ -2,7 +2,8 @@
 replicaCount: 1
 
 image:
-  repository: ofurmaniuk/app-web:latest
+  repository: ofurmaniuk/app-web
+  tag: latest
   pullPolicy: IfNotPresent
 
 service:
