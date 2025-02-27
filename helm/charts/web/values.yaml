@@ -2,8 +2,7 @@
 replicaCount: 1
 
 image:
-  repository: ofurmaniuk/app-web
-  tag: latest
+  repository: ofurmaniuk/app-web:latest
   pullPolicy: IfNotPresent
 
 service:
@@ -13,7 +12,7 @@ service:
 
 # Update API host to match the actual service name
 api:
-  host: http://api-svc.app.svc.cluster.local
+  host: http://api-svc.production.svc.cluster.local
   port: "80"
 
 resources:
