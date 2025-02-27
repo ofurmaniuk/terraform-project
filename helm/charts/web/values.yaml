@@ -13,7 +13,7 @@ service:
 
 # Update API host to match the actual service name
 api:
-  host: "http://api-svc"  # Changed from api-service to api-svc
+  host: http://api-svc.app.svc.cluster.local
   port: "80"
 
 resources:
