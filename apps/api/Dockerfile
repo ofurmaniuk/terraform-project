@@ -1,7 +1,9 @@
 FROM node:14-alpine
 WORKDIR /usr/src/app
 COPY package*.json ./
-RUN npm install --verbose
+RUN npm install --only=production --legacy-peer-deps && \
+    npm cache clean --force && \
+    rm -rf /tmp/* /var/cache/apk/*
 COPY . .
 ENV PORT=3000 \
     DBUSER='' \
@@ -12,3 +14,5 @@ ENV PORT=3000 \
 EXPOSE 3000
 USER node
 CMD [ "npm", "start" ]
+
+
