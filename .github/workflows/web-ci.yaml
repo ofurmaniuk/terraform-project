@@ -48,7 +48,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: '14'
       
       - name: Install dependencies
         working-directory: ./apps/web
@@ -99,9 +99,6 @@ jobs:
           push: true
           tags: ofurmaniuk/app-web:latest,ofurmaniuk/app-web:${{ github.sha }}
           file: ./apps/web/Dockerfile
-          build-args: |
-            PORT=4000
-            API_HOST=http://api-service
 
   image-scan:
     needs: build
