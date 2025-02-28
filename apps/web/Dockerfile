@@ -7,6 +7,6 @@ ENV PORT=4000 \
     API_HOST=
 EXPOSE 4000
 USER node
-CMD [ "node", "./src/bin/www" ]
+CMD [ "node", "start" ]
 
 
