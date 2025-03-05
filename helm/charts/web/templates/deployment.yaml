@@ -1,4 +1,4 @@
-# templates/deployment.yaml
+# templates/deployment.yaml 
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -19,6 +19,9 @@ spec:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default "latest" }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # Use shell command to start the app correctly
+          command: ["/bin/sh", "-c"]
+          args: ["npm start"]
           ports:
             - containerPort: {{ .Values.service.targetPort }}
           env:
@@ -26,7 +29,6 @@ spec:
               value: "{{ .Values.service.targetPort }}"
             - name: API_HOST
               value: "{{ .Values.api.host }}"
-              
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:
@@ -35,9 +37,11 @@ spec:
               port: {{ .Values.service.targetPort }}
             initialDelaySeconds: 30
             periodSeconds: 20
+            timeoutSeconds: 5
           readinessProbe:
             httpGet:
               path: /
               port: {{ .Values.service.targetPort }}
             initialDelaySeconds: 15
             periodSeconds: 10
+            timeoutSeconds: 5
