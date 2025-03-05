@@ -19,35 +19,12 @@ spec:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default "latest" }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          # Match the Dockerfile's CMD exactly
-          command: ["node"]
-          args: ["./src/bin/www"]
+          # Remove command and args - use the Dockerfile's CMD
           ports:
-            - containerPort: {{ .Values.service.targetPort }}
+            - containerPort: 4000
           env:
             - name: PORT
-              value: "{{ .Values.service.targetPort }}"
+              value: "4000"
             - name: API_HOST
-              value: "http://api-svc.production.svc.cluster.local"
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-          startupProbe:
-            httpGet:
-              path: /
-              port: {{ .Values.service.targetPort }}
-            failureThreshold: 30
-            periodSeconds: 10
-          livenessProbe:
-            httpGet:
-              path: /
-              port: {{ .Values.service.targetPort }}
-            initialDelaySeconds: 60
-            periodSeconds: 20
-            timeoutSeconds: 5
-          readinessProbe:
-            httpGet:
-              path: /
-              port: {{ .Values.service.targetPort }}
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            timeoutSeconds: 5
+              value: "http://api-svc"
+          # Remove all probes
