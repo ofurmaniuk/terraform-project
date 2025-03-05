@@ -11,9 +11,9 @@ service:
   port: 80
   targetPort: 4000
 
-# API Service connection
+# Update API host to match the actual service name
 api:
-  host: "http://api-service"
+  host: "http://api-svc"
   port: "80"
 
 resources:
