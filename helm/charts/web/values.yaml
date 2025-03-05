@@ -1,46 +1,46 @@
-# values.yaml for web chart
-replicaCount: 1
-
-image:
-  repository: ofurmaniuk/app-web
-  tag: latest
-  pullPolicy: IfNotPresent
-
-service:
-  type: ClusterIP
-  port: 80
-  targetPort: 4000
-
-# Update API host to match the actual service name
-api:
-  host: http://api-svc.production.svc.cluster.local
-  port: "80"
-
-resources:
-  limits:
-    cpu: 200m
-    memory: 256Mi
-  requests:
-    cpu: 100m
-    memory: 128Mi
-
-livenessProbe:
-  path: /
-  initialDelaySeconds: 15
-  periodSeconds: 20
-
-readinessProbe:
-  path: /
-  initialDelaySeconds: 5
-  periodSeconds: 10
-
-ingress:
-  enabled: true
-  className: nginx
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-  hosts:
-    - host: ""
-      paths:
-        - path: /
-          pathType: Prefix
+# templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    {{- include "web.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "web.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "web.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default "latest" }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["node"]
+          args: ["./src/bin/www"]
+          ports:
+            - containerPort: {{ .Values.service.targetPort }}
+          env:
+            - name: PORT
+              value: "{{ .Values.service.targetPort }}"
+            - name: API_HOST
+              value: "{{ .Values.api.host }}"
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.service.targetPort }}
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.service.targetPort }}
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3

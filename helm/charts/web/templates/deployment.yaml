@@ -26,6 +26,7 @@ spec:
               value: "{{ .Values.service.targetPort }}"
             - name: API_HOST
               value: "{{ .Values.api.host }}"
+              
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:
