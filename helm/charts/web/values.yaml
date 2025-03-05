@@ -9,7 +9,7 @@ image:
 service:
   type: ClusterIP
   port: 80
-  targetPort: 4000
+  targetPort: 3000  # Changed from 4000
 
 # Update API host to match the actual service name
 api:
@@ -26,12 +26,12 @@ resources:
 
 livenessProbe:
   path: /
-  initialDelaySeconds: 30
+  initialDelaySeconds: 60  # Increased to give more startup time
   periodSeconds: 20
 
 readinessProbe:
   path: /
-  initialDelaySeconds: 15
+  initialDelaySeconds: 30  # Increased to give more startup time
   periodSeconds: 10
 
 ingress:
