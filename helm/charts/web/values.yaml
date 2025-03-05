@@ -9,7 +9,7 @@ image:
 service:
   type: ClusterIP
   port: 80
-  targetPort: 3000  # Changed from 4000
+  targetPort: 4000  # Changed back to 4000 to match Dockerfile
 
 # Update API host to match the actual service name
 api:

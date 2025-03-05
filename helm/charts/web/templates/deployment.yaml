@@ -19,9 +19,9 @@ spec:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default "latest" }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          # Use shell command to start the app correctly
-          command: ["/bin/sh", "-c"]
-          args: ["npm start"]
+          # Use the exact path from the Dockerfile
+          command: ["node"]
+          args: ["./src/bin/www"]
           ports:
             - containerPort: {{ .Values.service.targetPort }}
           env:
