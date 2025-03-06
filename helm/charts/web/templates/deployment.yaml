@@ -26,5 +26,5 @@ spec:
             - name: PORT
               value: "4000"
             - name: API_HOST
-              value: "http://api-svc"
+              value: http://api-svc.production.svc.cluster.local
           # Remove all probes
