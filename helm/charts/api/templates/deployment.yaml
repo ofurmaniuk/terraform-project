@@ -35,9 +35,11 @@ spec:
           command: ["/bin/sh", "-c"]
           args:
             - |
-              source /vault/secrets/database && \
-              export DBHOST="{{ .Values.database.host }}" && \
-              export DBPORT="{{ .Values.database.port }}" && \
+              cat /vault/secrets/database
+              . /vault/secrets/database
+              env | grep DB
+              export DBHOST="{{ .Values.database.host }}"
+              export DBPORT="{{ .Values.database.port }}"
               npm start
           env:
             - name: PORT
