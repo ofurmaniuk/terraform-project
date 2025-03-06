@@ -12,6 +12,14 @@ resource "aws_security_group" "aurora" {
     security_groups = [var.web_security_group_id, var.eks_cluster_security_group_id]
   }
 
+  ingress {
+    description = "PostgreSQL from VPC CIDR"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]  # Your VPC CIDR
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -23,17 +31,6 @@ resource "aws_security_group" "aurora" {
     Name = "${var.environment}-aurora-sg"
   })
 }
-
-# # Explicit security group rule for EKS workers to RDS
-# resource "aws_security_group_rule" "eks_to_rds" {
-#   type                     = "ingress"
-#   from_port                = 5432
-#   to_port                  = 5432
-#   protocol                 = "tcp"
-#   source_security_group_id = var.eks_cluster_security_group_id
-#   security_group_id        = aws_security_group.aurora.id
-#   description              = "Allow PostgreSQL traffic from EKS cluster"
-# }
 
 # Subnet Group
 resource "aws_db_subnet_group" "aurora" {
@@ -73,7 +70,6 @@ resource "aws_rds_cluster" "aurora" {
  timeouts {
     delete = "30m"  # Increase from default 5m to 30m
   }
-
 }
 
 # Aurora Instance
