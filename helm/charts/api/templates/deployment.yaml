@@ -19,11 +19,11 @@ spec:
         vault.hashicorp.com/agent-inject-secret-database: "secret/data/database"
         vault.hashicorp.com/agent-inject-template-database: |
             #!/bin/sh
-            {{- with secret "secret/data/database" }}
+            {{`{{- with secret "secret/data/database" }}
             export DBUSER="{{ .Data.username }}"
             export DBPASS="{{ .Data.password }}"
             export DB="{{ .Data.dbname }}"
-            {{- end }}
+            {{- end }}`}}
             export DBHOST="{{ .Values.database.host }}"
             export DBPORT="{{ .Values.database.port }}"
     spec:
