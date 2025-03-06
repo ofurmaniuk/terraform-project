@@ -9,7 +9,7 @@ resource "aws_security_group" "aurora" {
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
-    security_groups = [var.web_security_group_id, var.eks_cluster_security_group_id,]
+    security_groups = [var.web_security_group_id, var.eks_cluster_security_group_id]
   }
 
   egress {
@@ -18,9 +18,21 @@ resource "aws_security_group" "aurora" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
   tags = merge(local.common_tags, {
     Name = "${var.environment}-aurora-sg"
   })
+}
+
+# Explicit security group rule for EKS workers to RDS
+resource "aws_security_group_rule" "eks_to_rds" {
+  type                     = "ingress"
+  from_port                = 5432
+  to_port                  = 5432
+  protocol                 = "tcp"
+  source_security_group_id = var.eks_cluster_security_group_id
+  security_group_id        = aws_security_group.aurora.id
+  description              = "Allow PostgreSQL traffic from EKS cluster"
 }
 
 # Subnet Group
@@ -37,7 +49,7 @@ resource "aws_rds_cluster" "aurora" {
   cluster_identifier      = "${var.environment}-aurora-cluster"
   engine                 = "aurora-postgresql"
   engine_mode            = "provisioned"
-  engine_version         = "14.6"
+  engine_version         = "14.7"
   database_name          = var.db_name
   master_username        = var.master_username
   master_password        = "password"
@@ -58,8 +70,11 @@ resource "aws_rds_cluster" "aurora" {
     Name = "${var.environment}-aurora-cluster"
   })
 
-}
+ timeouts {
+    delete = "30m"  # Increase from default 5m to 30m
+  }
 
+}
 
 # Aurora Instance
 resource "aws_rds_cluster_instance" "aurora_instance" {
