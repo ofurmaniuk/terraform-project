@@ -286,6 +286,8 @@ kubectl delete -f k8s/argocd/applications/main/api.yaml --wait=false
 
 kubectl apply -f k8s/argocd/applications/main/web.yaml  
 
+kubectl get ingress -n production
+
 ``` 
 
 
