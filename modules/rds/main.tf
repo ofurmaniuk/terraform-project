@@ -24,16 +24,16 @@ resource "aws_security_group" "aurora" {
   })
 }
 
-# Explicit security group rule for EKS workers to RDS
-resource "aws_security_group_rule" "eks_to_rds" {
-  type                     = "ingress"
-  from_port                = 5432
-  to_port                  = 5432
-  protocol                 = "tcp"
-  source_security_group_id = var.eks_cluster_security_group_id
-  security_group_id        = aws_security_group.aurora.id
-  description              = "Allow PostgreSQL traffic from EKS cluster"
-}
+# # Explicit security group rule for EKS workers to RDS
+# resource "aws_security_group_rule" "eks_to_rds" {
+#   type                     = "ingress"
+#   from_port                = 5432
+#   to_port                  = 5432
+#   protocol                 = "tcp"
+#   source_security_group_id = var.eks_cluster_security_group_id
+#   security_group_id        = aws_security_group.aurora.id
+#   description              = "Allow PostgreSQL traffic from EKS cluster"
+# }
 
 # Subnet Group
 resource "aws_db_subnet_group" "aurora" {
