@@ -29,8 +29,6 @@ readinessProbe:
   periodSeconds: 10
 
 database:
-  host: "production-aurora-cluster.cluster-cdpxotwegnsy.us-east-2.rds.amazonaws.com"
+  host: "production-aurora-instance.cdpxotwegnsy.us-east-2.rds.amazonaws.com"
   port: "5432"
   name: "mydatabase"
-
-
