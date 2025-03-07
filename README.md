@@ -280,7 +280,7 @@ kubectl delete namespace vault --force --grace-period=0
 ``` 
 
 ```shell
- kubectl apply -f k8s/argocd/applications/main/api.yaml  
+kubectl apply -f k8s/argocd/applications/main/api.yaml  
 
 kubectl delete -f k8s/argocd/applications/main/api.yaml --wait=false
 
@@ -290,7 +290,9 @@ kubectl get ingress -n production
 
 ``` 
 
-
+workflow for for all applications such as :
+ebs-csi-driver, monitoring , ingress-nginx , metrics-server , vault 
+api and web 
 
 `
 
