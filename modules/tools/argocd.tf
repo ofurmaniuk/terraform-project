@@ -6,6 +6,7 @@ resource "helm_release" "argocd" {
   version          = "5.51.6"
   namespace        = "argocd"
   create_namespace = true
+  timeout          = 900 
 
   values = [<<-EOF
     server:
