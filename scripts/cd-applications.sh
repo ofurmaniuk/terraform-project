@@ -23,8 +23,8 @@ handle_error() {
 }
 trap handle_error ERR
 
-# Get environment from first argument or use production as default
-ENVIRONMENT=${1:-production}
+# Get environment from first argument or use main as default
+ENVIRONMENT=${1:-main}
 log "Starting deployment to environment: ${ENVIRONMENT}"
 
 # Connecting to EKS Cluster
@@ -39,7 +39,7 @@ aws eks update-kubeconfig --name $CLUSTER_NAME --region us-east-2
 
 # Create namespaces if needed
 log "Ensuring required namespaces exist..."
-for ns in argocd production monitoring ingress-nginx vault; do
+for ns in argocd main dev monitoring ingress-nginx vault; do
     kubectl get namespace $ns &>/dev/null || kubectl create namespace $ns
 done
 
@@ -89,39 +89,46 @@ wait_for_deployment() {
 # Deploy applications in exact order
 log "Deploying applications in order..."
 
+# Set the application directory based on environment
+APP_DIR="k8s/argocd/applications/${ENVIRONMENT}"
+if [ ! -d "$APP_DIR" ]; then
+    log "Application directory $APP_DIR does not exist, falling back to main directory"
+    APP_DIR="k8s/argocd/applications/main"
+fi
+
 # AWS EBS CSI Driver
 log "Deploying AWS EBS CSI Driver..."
-kubectl apply -f k8s/argocd/applications/main/aws-ebs-csi-driver.yaml
+kubectl apply -f $APP_DIR/aws-ebs-csi-driver.yaml
 wait_for_deployment "kube-system" "app.kubernetes.io/name=aws-ebs-csi-driver" 300
 
 # Monitoring
 log "Deploying Monitoring..."
-kubectl apply -f k8s/argocd/applications/main/monitoring.yaml
+kubectl apply -f $APP_DIR/monitoring.yaml
 wait_for_deployment "monitoring" "app.kubernetes.io/name=prometheus" 300
 
 # Ingress Nginx
 log "Deploying Ingress Nginx..."
-kubectl apply -f k8s/argocd/applications/main/ingress-nginx.yaml
+kubectl apply -f $APP_DIR/ingress-nginx.yaml
 wait_for_deployment "ingress-nginx" "app.kubernetes.io/name=ingress-nginx" 300
 
 # Metrics Server
 log "Deploying Metrics Server..."
-kubectl apply -f k8s/argocd/applications/main/metrics-server.yaml
+kubectl apply -f $APP_DIR/metrics-server.yaml
 wait_for_deployment "kube-system" "app.kubernetes.io/name=metrics-server" 300
 
 # Vault
 log "Deploying Vault..."
-kubectl apply -f k8s/argocd/applications/main/vault.yaml
+kubectl apply -f $APP_DIR/vault.yaml
 log "Not waiting for Vault deployment as it may take longer"
 
-# API and Web (commented out as in your example)
+# API and Web (commented out in your example)
 # log "Deploying API..."
-# kubectl apply -f k8s/argocd/applications/main/api.yaml
-# wait_for_deployment "production" "app=api" 300
+# kubectl apply -f $APP_DIR/api.yaml
+# wait_for_deployment "${ENVIRONMENT}" "app=api" 300
 
 # log "Deploying Web..."
-# kubectl apply -f k8s/argocd/applications/main/web.yaml
-# wait_for_deployment "production" "app=web" 300
+# kubectl apply -f $APP_DIR/web.yaml
+# wait_for_deployment "${ENVIRONMENT}" "app=web" 300
 
 # Check final sync status
 log "Checking ArgoCD application sync status..."

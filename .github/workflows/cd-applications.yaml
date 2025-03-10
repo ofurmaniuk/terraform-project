@@ -1,4 +1,4 @@
-name: CD-Applications
+name: CD - Applications
 
 on:
  workflow_dispatch:
@@ -6,9 +6,9 @@ on:
      environment:
        description: "Environment to deploy to"
        required: true
-       default: "production"
+       default: "main"
        type: choice
-       options: [production]
+       options: [main, dev]
  push:
    branches: ["main"]
    paths:
@@ -18,7 +18,7 @@ on:
 
 env:
  AWS_REGION: us-east-2
- TARGET_ENV: ${{ github.event.inputs.environment || 'production' }}
+ TARGET_ENV: ${{ github.event.inputs.environment || 'main' }}
 
 jobs:
  helm-lint:
@@ -118,7 +118,7 @@ jobs:
    needs: init-cluster
    runs-on: ubuntu-latest
    timeout-minutes: 15
-   environment: ${{ github.event.inputs.environment || 'production' }}
+   environment: ${{ github.event.inputs.environment || 'main' }}
    permissions:
      contents: read
      id-token: write
@@ -170,7 +170,7 @@ jobs:
            kubectl get applications -n argocd -o wide
            echo ""
            echo "=== Deployments by Namespace ==="
-           for ns in argocd production monitoring ingress-nginx vault kube-system; do
+           for ns in argocd main dev monitoring ingress-nginx vault kube-system; do
              echo "--- $ns namespace ---"
              kubectl get deployments -n $ns 2>/dev/null || echo "No deployments found"
            done
