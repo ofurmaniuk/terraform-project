@@ -27,13 +27,11 @@ trap handle_error ERR
 ENVIRONMENT=${1:-main}
 log "Starting deployment to environment: ${ENVIRONMENT}"
 
+# Cluster is hardcoded as production-cluster regardless of environment
+CLUSTER_NAME="production-cluster"
+log "Using cluster: ${CLUSTER_NAME}"
+
 # Connecting to EKS Cluster
-log "Looking for EKS cluster..."
-CLUSTER_NAME=$(aws eks list-clusters --region us-east-2 --query "clusters[?contains(@, '${ENVIRONMENT}')]|[0]" --output text)
-if [ -z "$CLUSTER_NAME" ]; then
-    log "Error: Cluster not found for environment ${ENVIRONMENT}!"
-    exit 1
-fi
 log "Connecting to cluster: ${CLUSTER_NAME}"
 aws eks update-kubeconfig --name $CLUSTER_NAME --region us-east-2
 
@@ -121,7 +119,7 @@ log "Deploying Vault..."
 kubectl apply -f $APP_DIR/vault.yaml
 log "Not waiting for Vault deployment as it may take longer"
 
-# API and Web (commented out in your example)
+# API and Web (commented out as in your example)
 # log "Deploying API..."
 # kubectl apply -f $APP_DIR/api.yaml
 # wait_for_deployment "${ENVIRONMENT}" "app=api" 300

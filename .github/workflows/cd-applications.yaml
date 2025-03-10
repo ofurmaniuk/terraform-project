@@ -19,6 +19,7 @@ on:
 env:
  AWS_REGION: us-east-2
  TARGET_ENV: ${{ github.event.inputs.environment || 'main' }}
+ CLUSTER_NAME: production-cluster
 
 jobs:
  helm-lint:
@@ -58,8 +59,6 @@ jobs:
    needs: helm-lint
    runs-on: ubuntu-latest
    timeout-minutes: 5
-   outputs:
-     cluster_name: ${{ steps.get-cluster.outputs.cluster_name }}
    steps:
      - uses: actions/checkout@v3
        with:
@@ -87,17 +86,14 @@ jobs:
          path: ~/.kube
          key: kubectl-${{ env.TARGET_ENV }}
 
-     - name: Get Cluster Name
-       id: get-cluster
+     - name: Verify Cluster
        run: |
-         echo "=== Getting cluster info ==="
-         CLUSTER_NAME=$(aws eks list-clusters --query "clusters[?contains(@, '${{ env.TARGET_ENV }}')]|[0]" --output text)
-         if [ -z "$CLUSTER_NAME" ]; then
+         echo "=== Verifying cluster exists ==="
+         if ! aws eks describe-cluster --name ${{ env.CLUSTER_NAME }} --region ${{ env.AWS_REGION }} &>/dev/null; then
            echo "Кластер не найден, все пошло по пизде!"
            exit 1
          fi
-         echo "Found cluster: $CLUSTER_NAME"
-         echo "cluster_name=$CLUSTER_NAME" >> $GITHUB_OUTPUT
+         echo "Cluster ${{ env.CLUSTER_NAME }} verified."
 
      - name: Install kubectl
        uses: azure/setup-kubectl@v3
@@ -138,13 +134,14 @@ jobs:
      - name: Configure kubectl
        run: |
          echo "=== Configuring kubectl ==="
-         aws eks update-kubeconfig --name ${{ needs.init-cluster.outputs.cluster_name }} --region ${{ env.AWS_REGION }}
+         aws eks update-kubeconfig --name ${{ env.CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+         kubectl get nodes || { echo "Error: Cannot connect to cluster"; exit 1; }
 
      - name: Deploy Applications
        run: |
          echo "=== Starting deployment process ==="
          echo "Target Environment: ${{ env.TARGET_ENV }}"
-         echo "Cluster: ${{ needs.init-cluster.outputs.cluster_name }}"
+         echo "Cluster: ${{ env.CLUSTER_NAME }}"
          echo "Region: ${{ env.AWS_REGION }}"
 
          echo "=== Setting execute permissions ==="
@@ -164,7 +161,7 @@ jobs:
          {
            echo "Deployment completed at $(date)"
            echo "Environment: ${{ env.TARGET_ENV }}"
-           echo "Cluster: ${{ needs.init-cluster.outputs.cluster_name }}"
+           echo "Cluster: ${{ env.CLUSTER_NAME }}"
            echo ""
            echo "=== ArgoCD Applications ==="
            kubectl get applications -n argocd -o wide
