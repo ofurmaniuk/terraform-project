@@ -1,4 +1,4 @@
-name: CD - Applications
+name: CD-Applications
 
 on:
  workflow_dispatch:

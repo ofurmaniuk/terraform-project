@@ -232,7 +232,7 @@ vault operator unseal KEY3
 
 
 # Authenticate with root token
- vault login ROOT_TOKEN
+  ROOT_TOKENvault login
 ``` 
 
 ```shell
@@ -267,7 +267,7 @@ EOF
 # Create role for your API service account (changed name to match pod annotation)
 vault write auth/kubernetes/role/api \
     bound_service_account_names=api-sa \
-    bound_service_account_namespaces=production \
+    bound_service_account_namespaces=application\
     policies=api \
     ttl=1h
 ``` 

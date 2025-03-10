@@ -1,0 +1,138 @@
+name: Destroy-Applications
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to destroy"
+        required: true
+        default: "main"
+        type: choice
+        options: [main, dev]
+      confirmation:
+        description: "Type 'DESTROY' to confirm"
+        required: true
+        type: string
+
+env:
+  AWS_REGION: us-east-2
+  TARGET_ENV: ${{ github.event.inputs.environment }}
+  CLUSTER_NAME: production-cluster
+  FORCE_DESTROY: "true"
+  CLEAN_RESOURCES: "true"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify confirmation
+        if: ${{ github.event.inputs.confirmation != 'DESTROY' }}
+        run: |
+          echo "::error::You must type 'DESTROY' to confirm destruction. Received: '${{ github.event.inputs.confirmation }}'"
+          exit 1
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify cluster
+        run: |
+          echo "=== Verifying cluster exists ==="
+          if ! aws eks describe-cluster --name ${{ env.CLUSTER_NAME }} --region ${{ env.AWS_REGION }} &>/dev/null; then
+            echo "::error::Cluster not found: ${{ env.CLUSTER_NAME }}"
+            exit 1
+          fi
+          echo "Cluster ${{ env.CLUSTER_NAME }} verified."
+
+      - name: Create pre-destroy backup
+        run: |
+          echo "=== Creating pre-destroy backup ==="
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          BACKUP_FILE="pre-destroy-backup-${TIMESTAMP}.json"
+          
+          mkdir -p backup
+          
+          # Connect to the cluster
+          aws eks update-kubeconfig --name ${{ env.CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+          
+          # Export all ArgoCD applications
+          echo "Exporting ArgoCD applications..."
+          kubectl get applications -n argocd -o json > backup/$BACKUP_FILE
+          
+          # Upload backup to S3
+          aws s3 cp backup/$BACKUP_FILE s3://ofurmaniuk/terraform-project/backups/$BACKUP_FILE
+          
+          echo "Backup created and uploaded to S3: $BACKUP_FILE"
+
+  destroy:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: ${{ github.event.inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: ${{ github.event.inputs.environment }}-destroy
+      cancel-in-progress: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure kubectl
+        run: |
+          echo "=== Configuring kubectl ==="
+          aws eks update-kubeconfig --name ${{ env.CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+          kubectl get nodes || { echo "Error: Cannot connect to cluster"; exit 1; }
+
+      - name: Run Destroy Script
+        run: |
+          echo "=== Starting destruction process ==="
+          echo "Target Environment: ${{ env.TARGET_ENV }}"
+          echo "Cluster: ${{ env.CLUSTER_NAME }}"
+          echo "Region: ${{ env.AWS_REGION }}"
+
+          echo "=== Setting execute permissions ==="
+          chmod +x scripts/cd-destroy.sh
+
+          echo "=== Running destroy script ==="
+          CI=true FORCE_DESTROY=true CLEAN_RESOURCES=true ./scripts/cd-destroy.sh ${{ env.TARGET_ENV }}
+
+          echo "=== Destruction script completed ==="
+
+      - name: Save Destruction Summary
+        run: |
+          echo "=== Creating destruction summary ==="
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          SUMMARY_FILE="destroy-summary-${TIMESTAMP}.txt"
+          
+          {
+            echo "Destruction completed at $(date)"
+            echo "Environment: ${{ env.TARGET_ENV }}"
+            echo "Cluster: ${{ env.CLUSTER_NAME }}"
+            echo ""
+            echo "=== Remaining ArgoCD Applications ==="
+            kubectl get applications -n argocd -o wide 2>/dev/null || echo "No applications found"
+            echo ""
+            echo "=== Remaining resources by namespace ==="
+            for ns in argocd main dev monitoring ingress-nginx vault kube-system; do
+              echo "--- $ns namespace ---"
+              kubectl get deployments,statefulsets,daemonsets -n $ns 2>/dev/null || echo "No resources found"
+            done
+          } > $SUMMARY_FILE
+          
+          aws s3 cp $SUMMARY_FILE s3://ofurmaniuk/terraform-project/app-logs/$SUMMARY_FILE
