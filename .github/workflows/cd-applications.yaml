@@ -1,0 +1,179 @@
+name: CD - Applications
+
+on:
+ workflow_dispatch:
+   inputs:
+     environment:
+       description: "Environment to deploy to"
+       required: true
+       default: "production"
+       type: choice
+       options: [production]
+ push:
+   branches: ["main"]
+   paths:
+     - "helm/charts/**"
+     - "k8s/argocd/applications/**"
+     - ".github/workflows/applications-cd.yaml"
+
+env:
+ AWS_REGION: us-east-2
+ TARGET_ENV: ${{ github.event.inputs.environment || 'production' }}
+
+jobs:
+ helm-lint:
+   runs-on: ubuntu-latest
+   timeout-minutes: 5
+   steps:
+     - uses: actions/checkout@v3
+
+     - name: Set up Helm
+       uses: azure/setup-helm@v3
+       with:
+         version: "latest"
+
+     - name: Build Helm dependencies
+       run: |
+         echo "=== Building Helm dependencies ==="
+         cd helm/charts/aws-ebs-csi-driver && helm dependency build && cd ../../..
+         cd helm/charts/monitoring && helm dependency build && cd ../../..
+         cd helm/charts/ingress-nginx && helm dependency build && cd ../../..
+         cd helm/charts/metrics-server && helm dependency build && cd ../../..
+         cd helm/charts/vault && helm dependency build && cd ../../..
+
+     - name: Run Helm lint
+       run: |
+         echo "=== Starting Helm lint ==="
+         for chart in helm/charts/*; do
+           if [ -d "$chart" ]; then
+             echo "Checking chart: $chart"
+             helm lint "$chart"
+             echo "Validating templates for: $chart"
+             helm template "$chart" > /dev/null
+           fi
+         done
+         echo "=== Helm lint completed ==="
+
+ init-cluster:
+   needs: helm-lint
+   runs-on: ubuntu-latest
+   timeout-minutes: 5
+   outputs:
+     cluster_name: ${{ steps.get-cluster.outputs.cluster_name }}
+   steps:
+     - uses: actions/checkout@v3
+       with:
+         ref: ${{ github.head_ref || github.ref_name }}
+
+     - name: Configure AWS Credentials
+       uses: aws-actions/configure-aws-credentials@v4
+       with:
+         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+         aws-region: ${{ env.AWS_REGION }}
+
+     - name: Cache Helm dependencies
+       uses: actions/cache@v3
+       with:
+         path: |
+           ~/.cache/helm
+           ~/.helm
+         key: helm-deps-${{ hashFiles('helm/charts/**/Chart.yaml') }}
+         restore-keys: helm-deps-
+
+     - name: Cache kubectl config
+       uses: actions/cache@v3
+       with:
+         path: ~/.kube
+         key: kubectl-${{ env.TARGET_ENV }}
+
+     - name: Get Cluster Name
+       id: get-cluster
+       run: |
+         echo "=== Getting cluster info ==="
+         CLUSTER_NAME=$(aws eks list-clusters --query "clusters[?contains(@, '${{ env.TARGET_ENV }}')]|[0]" --output text)
+         if [ -z "$CLUSTER_NAME" ]; then
+           echo "Кластер не найден, все пошло по пизде!"
+           exit 1
+         fi
+         echo "Found cluster: $CLUSTER_NAME"
+         echo "cluster_name=$CLUSTER_NAME" >> $GITHUB_OUTPUT
+
+     - name: Install kubectl
+       uses: azure/setup-kubectl@v3
+       with:
+         version: "latest"
+
+     - name: Install Helm
+       uses: azure/setup-helm@v3
+       with:
+         version: "latest"
+
+     - name: Validate Kubernetes configs
+       run: |
+         echo "=== Validating K8s configs ==="
+         find k8s -name "*.yaml" -exec kubectl --dry-run=client -f {} \;
+
+ deploy:
+   needs: init-cluster
+   runs-on: ubuntu-latest
+   timeout-minutes: 15
+   environment: ${{ github.event.inputs.environment || 'production' }}
+   permissions:
+     contents: read
+     id-token: write
+   concurrency:
+     group: ${{ github.ref_name }}-deploy
+     cancel-in-progress: false
+   steps:
+     - uses: actions/checkout@v3
+
+     - name: Configure AWS Credentials
+       uses: aws-actions/configure-aws-credentials@v4
+       with:
+         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+         aws-region: ${{ env.AWS_REGION }}
+
+     - name: Configure kubectl
+       run: |
+         echo "=== Configuring kubectl ==="
+         aws eks update-kubeconfig --name ${{ needs.init-cluster.outputs.cluster_name }} --region ${{ env.AWS_REGION }}
+
+     - name: Deploy Applications
+       run: |
+         echo "=== Starting deployment process ==="
+         echo "Target Environment: ${{ env.TARGET_ENV }}"
+         echo "Cluster: ${{ needs.init-cluster.outputs.cluster_name }}"
+         echo "Region: ${{ env.AWS_REGION }}"
+
+         echo "=== Setting execute permissions ==="
+         chmod +x scripts/cd-applications.sh
+
+         echo "=== Running deployment script ==="
+         ./scripts/cd-applications.sh ${{ env.TARGET_ENV }}
+
+         echo "=== Deployment script completed ==="
+
+     - name: Save Deployment Summary
+       run: |
+         echo "=== Creating deployment summary ==="
+         TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+         SUMMARY_FILE="deploy-summary-${TIMESTAMP}.txt"
+         
+         {
+           echo "Deployment completed at $(date)"
+           echo "Environment: ${{ env.TARGET_ENV }}"
+           echo "Cluster: ${{ needs.init-cluster.outputs.cluster_name }}"
+           echo ""
+           echo "=== ArgoCD Applications ==="
+           kubectl get applications -n argocd -o wide
+           echo ""
+           echo "=== Deployments by Namespace ==="
+           for ns in argocd production monitoring ingress-nginx vault kube-system; do
+             echo "--- $ns namespace ---"
+             kubectl get deployments -n $ns 2>/dev/null || echo "No deployments found"
+           done
+         } > $SUMMARY_FILE
+         
+         aws s3 cp $SUMMARY_FILE s3://ofurmaniuk/terraform-project/app-logs/$SUMMARY_FILE
