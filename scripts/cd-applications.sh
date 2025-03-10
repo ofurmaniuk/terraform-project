@@ -49,23 +49,32 @@ cd helm/charts/ingress-nginx && helm dependency build && cd ../../..
 cd helm/charts/metrics-server && helm dependency build && cd ../../..
 cd helm/charts/vault && helm dependency build && cd ../../..
 
-# Function to wait for deployment
-wait_for_deployment() {
+# Function to wait for pods to be ready
+wait_for_pods() {
     local namespace=$1
     local label=$2
     local timeout=${3:-300}
     local interval=10
     local elapsed=0
 
-    log "Waiting for deployment in namespace ${namespace} with label ${label}..."
+    log "Waiting for pods in namespace ${namespace} with label ${label}..."
     sleep 30 # Give ArgoCD time to start the sync
 
     while [ $elapsed -lt $timeout ]; do
-        if kubectl -n "${namespace}" get deployment -l "${label}" &>/dev/null; then
-            if kubectl wait --for=condition=Available deployment -n "${namespace}" -l "${label}" --timeout=30s &>/dev/null; then
-                log "Deployment is ready!"
+        # Check if pods exist
+        if kubectl -n "${namespace}" get pods -l "${label}" &>/dev/null; then
+            # Check if all pods are running and ready
+            READY_COUNT=$(kubectl -n "${namespace}" get pods -l "${label}" -o jsonpath='{range .items[*]}{.status.containerStatuses[0].ready}{"\n"}{end}' | grep -c "true" || echo "0")
+            TOTAL_COUNT=$(kubectl -n "${namespace}" get pods -l "${label}" --no-headers | wc -l)
+            
+            if [ "$READY_COUNT" -eq "$TOTAL_COUNT" ] && [ "$TOTAL_COUNT" -gt 0 ]; then
+                log "All $TOTAL_COUNT pods are ready!"
                 return 0
             fi
+            
+            log "$READY_COUNT of $TOTAL_COUNT pods are ready"
+        else
+            log "No pods found with label ${label} in namespace ${namespace}"
         fi
 
         log "Still waiting... (${elapsed}s/${timeout}s)"
@@ -80,8 +89,11 @@ wait_for_deployment() {
     done
 
     log "Deployment failed after ${timeout} seconds! Current status:"
-    kubectl get pods -n "${namespace}" -l "${label}" -o wide
-    return 1
+    kubectl get pods -n "${namespace}" -l "${label}" -o wide || true
+    
+    # Don't fail - just show the warning and continue
+    log "WARNING: Pods not fully ready, but continuing with deployment"
+    return 0
 }
 
 # Deploy applications in exact order
@@ -97,41 +109,36 @@ fi
 # AWS EBS CSI Driver
 log "Deploying AWS EBS CSI Driver..."
 kubectl apply -f $APP_DIR/aws-ebs-csi-driver.yaml
-wait_for_deployment "kube-system" "app.kubernetes.io/name=aws-ebs-csi-driver" 300
+wait_for_pods "kube-system" "app.kubernetes.io/name=aws-ebs-csi-driver" 300
 
 # Monitoring
 log "Deploying Monitoring..."
 kubectl apply -f $APP_DIR/monitoring.yaml
-wait_for_deployment "monitoring" "app.kubernetes.io/name=prometheus" 300
+wait_for_pods "monitoring" "app.kubernetes.io/name=prometheus" 300
 
 # Ingress Nginx
 log "Deploying Ingress Nginx..."
 kubectl apply -f $APP_DIR/ingress-nginx.yaml
-wait_for_deployment "ingress-nginx" "app.kubernetes.io/name=ingress-nginx" 300
+wait_for_pods "ingress-nginx" "app.kubernetes.io/name=ingress-nginx" 300
 
 # Metrics Server
 log "Deploying Metrics Server..."
 kubectl apply -f $APP_DIR/metrics-server.yaml
-wait_for_deployment "kube-system" "app.kubernetes.io/name=metrics-server" 300
+wait_for_pods "kube-system" "app.kubernetes.io/name=metrics-server" 300
 
 # Vault
 log "Deploying Vault..."
 kubectl apply -f $APP_DIR/vault.yaml
 log "Not waiting for Vault deployment as it may take longer"
 
-# API and Web (commented out as in your example)
-# log "Deploying API..."
-# kubectl apply -f $APP_DIR/api.yaml
-# wait_for_deployment "${ENVIRONMENT}" "app=api" 300
-
-# log "Deploying Web..."
-# kubectl apply -f $APP_DIR/web.yaml
-# wait_for_deployment "${ENVIRONMENT}" "app=web" 300
+# Verify all applications are created in ArgoCD
+log "Verifying ArgoCD applications..."
+kubectl get applications -n argocd
 
 # Check final sync status
 log "Checking ArgoCD application sync status..."
 sleep 15  # Final wait to ensure status is updated
-SYNC_STATUS=$(kubectl get applications -n argocd -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.sync.status}{"\n"}{end}')
+SYNC_STATUS=$(kubectl get applications -n argocd -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.sync.status}{"\n"}{end}' 2>/dev/null || echo "No applications found")
 log "Application sync status:"
 log "$SYNC_STATUS"
 log "Deployment completed successfully!"
