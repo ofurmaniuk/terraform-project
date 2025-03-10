@@ -1,4 +1,4 @@
-name: WEB-CI
+name: CI-WEB
 
 on:
   workflow_dispatch:

@@ -1,4 +1,4 @@
-name: Infra-cd 
+name: CD-Infra
 
 on:
   workflow_dispatch:
