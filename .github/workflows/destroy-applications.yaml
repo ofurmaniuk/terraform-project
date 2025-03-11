@@ -128,6 +128,7 @@ jobs:
             "metrics-server"
             "ingress-nginx"
             "monitoring"
+            "aws-ebs-csi-driver"
           )
           
           for app in "${ARGOCD_APPS[@]}"; do

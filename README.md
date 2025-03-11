@@ -290,23 +290,7 @@ kubectl get ingress -n application
 
 ``` 
 
-workflow for for all applications such as :
-ebs-csi-driver, monitoring , ingress-nginx , metrics-server , vault 
-api and web 
-
 `
-
- Useful commands 
-# Delete everything in namespace monitoring 
-kubectl delete all --all -n monitoring
-# Delete a pod 
-kubectl delete pod "pod name" -n monitoring --force --grace-period=0
-# Delete a ns 
-kubectl delete ns <namespace name>
-
-# ====================== Loki ================== #
-# installed thought Argo 
-# once i create Loki ( kind of database for logs ) and insatll Promtail ( which collects info from pods and converts it into logs ) i will create  a dashboard on Grafana for Loki (15141 dashboard for Loki)
 
 
 
