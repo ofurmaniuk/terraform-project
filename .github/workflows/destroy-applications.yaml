@@ -3,50 +3,43 @@ name: Destroy-Applications
 on:
   workflow_dispatch:
     inputs:
-      environment:
-        description: "Environment to destroy"
-        required: true
-        default: "main"
-        type: choice
-        options: [main, dev]
       confirmation:
         description: "Type 'DESTROY' to confirm"
         required: true
         type: string
 
+permissions:
+  id-token: write
+  contents: read
+
 env:
   AWS_REGION: us-east-2
-  TARGET_ENV: ${{ github.event.inputs.environment }}
   CLUSTER_NAME: production-cluster
-  FORCE_DESTROY: "true"
-  CLEAN_RESOURCES: "true"
 
 jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    if: github.event.inputs.confirmation == 'DESTROY'
     steps:
-      - name: Verify confirmation
-        if: ${{ github.event.inputs.confirmation != 'DESTROY' }}
-        run: |
-          echo "::error::You must type 'DESTROY' to confirm destruction. Received: '${{ github.event.inputs.confirmation }}'"
-          exit 1
-
       - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Verify cluster
         run: |
           echo "=== Verifying cluster exists ==="
           if ! aws eks describe-cluster --name ${{ env.CLUSTER_NAME }} --region ${{ env.AWS_REGION }} &>/dev/null; then
-            echo "::error::Cluster not found: ${{ env.CLUSTER_NAME }}"
+            echo "Cluster not found: ${{ env.CLUSTER_NAME }}"
             exit 1
           fi
           echo "Cluster ${{ env.CLUSTER_NAME }} verified."
@@ -55,84 +48,147 @@ jobs:
         run: |
           echo "=== Creating pre-destroy backup ==="
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-          BACKUP_FILE="pre-destroy-backup-${TIMESTAMP}.json"
-          
-          mkdir -p backup
+          BACKUP_DIR="backup-${TIMESTAMP}"
+          mkdir -p $BACKUP_DIR
           
           # Connect to the cluster
           aws eks update-kubeconfig --name ${{ env.CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
           
-          # Export all ArgoCD applications
-          echo "Exporting ArgoCD applications..."
-          kubectl get applications -n argocd -o json > backup/$BACKUP_FILE
+          # Export ArgoCD applications
+          kubectl get applications.argoproj.io -n argocd -o yaml > $BACKUP_DIR/applications.yaml || true
+          
+          # Export other important resources
+          kubectl get namespaces -o yaml > $BACKUP_DIR/namespaces.yaml || true
+          kubectl get deployments --all-namespaces -o yaml > $BACKUP_DIR/deployments.yaml || true
+          kubectl get services --all-namespaces -o yaml > $BACKUP_DIR/services.yaml || true
+          kubectl get ingress --all-namespaces -o yaml > $BACKUP_DIR/ingresses.yaml || true
+          
+          # Zip the backup files
+          zip -r $BACKUP_DIR.zip $BACKUP_DIR
           
           # Upload backup to S3
-          aws s3 cp backup/$BACKUP_FILE s3://ofurmaniuk/terraform-project/backups/$BACKUP_FILE
+          aws s3 cp $BACKUP_DIR.zip s3://ofurmaniuk/terraform-project/backups/$BACKUP_DIR.zip
           
-          echo "Backup created and uploaded to S3: $BACKUP_FILE"
+          echo "Backup created and uploaded to S3: $BACKUP_DIR.zip"
 
-  destroy:
+  destroy-applications:
     needs: verify
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment: ${{ github.event.inputs.environment }}
-    permissions:
-      contents: read
-      id-token: write
-    concurrency:
-      group: ${{ github.event.inputs.environment }}-destroy
-      cancel-in-progress: false
+    timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Configure kubectl
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: "latest"
+
+      - name: Connect to cluster
         run: |
-          echo "=== Configuring kubectl ==="
           aws eks update-kubeconfig --name ${{ env.CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
           kubectl get nodes || { echo "Error: Cannot connect to cluster"; exit 1; }
 
-      - name: Run Destroy Script
+      - name: Destroy applications
         run: |
-          echo "=== Starting destruction process ==="
-          echo "Target Environment: ${{ env.TARGET_ENV }}"
-          echo "Cluster: ${{ env.CLUSTER_NAME }}"
-          echo "Region: ${{ env.AWS_REGION }}"
-
-          echo "=== Setting execute permissions ==="
-          chmod +x scripts/cd-destroy.sh
-
-          echo "=== Running destroy script ==="
-          CI=true FORCE_DESTROY=true CLEAN_RESOURCES=true ./scripts/cd-destroy.sh ${{ env.TARGET_ENV }}
-
-          echo "=== Destruction script completed ==="
-
-      - name: Save Destruction Summary
-        run: |
-          echo "=== Creating destruction summary ==="
+          echo "=== Starting application destruction ==="
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-          SUMMARY_FILE="destroy-summary-${TIMESTAMP}.txt"
+          LOG_FILE="destroy-log-${TIMESTAMP}.txt"
+          
+          # Function to delete resource with proper logging and error handling
+          delete_resource() {
+            local namespace=$1
+            local resource_type=$2
+            local resource_name=$3
+            
+            echo "Deleting $resource_type/$resource_name in namespace $namespace" | tee -a $LOG_FILE
+            kubectl delete $resource_type -n $namespace $resource_name --timeout=60s --wait=true || {
+              echo "Warning: Failed to delete $resource_type/$resource_name, forcing deletion..." | tee -a $LOG_FILE
+              kubectl delete $resource_type -n $namespace $resource_name --force --grace-period=0 || true
+            }
+          }
+          
+          # 1. First, remove all ArgoCD applications in reverse order
+          echo "=== Removing ArgoCD applications ===" | tee -a $LOG_FILE
+          
+          ARGOCD_APPS=(
+            "web"
+            "api"
+            "vault"
+            "metrics-server"
+            "ingress-nginx"
+            "monitoring"
+          )
+          
+          for app in "${ARGOCD_APPS[@]}"; do
+            delete_resource "argocd" "applications.argoproj.io" "$app"
+            # Wait for cascading deletion
+            sleep 10
+          done
+          
+          # 2. Delete namespaces created by applications
+          echo "=== Removing namespaces ===" | tee -a $LOG_FILE
+          
+          NAMESPACES_TO_DELETE=(
+            "production"
+            "monitoring"
+            "ingress-nginx"
+            "vault"
+          )
+          
+          for ns in "${NAMESPACES_TO_DELETE[@]}"; do
+            echo "Deleting namespace $ns" | tee -a $LOG_FILE
+            kubectl delete namespace $ns --timeout=120s || {
+              echo "Forcing deletion of namespace $ns..." | tee -a $LOG_FILE
+              
+              # Remove finalizers from resources in the namespace
+              for resource_type in $(kubectl api-resources --namespaced=true --verbs=delete -o name); do
+                kubectl get "$resource_type" -n "$ns" -o name | xargs -r -n1 kubectl patch -n "$ns" --type="json" --patch='[{"op":"remove","path":"/metadata/finalizers"}]' || true
+              done
+              
+              # Force delete the namespace
+              kubectl delete namespace $ns --force --grace-period=0 || true
+            }
+          done
+          
+          # 3. Clean up any persistent volumes and claims
+          echo "=== Cleaning up persistent volumes ===" | tee -a $LOG_FILE
+          kubectl delete pvc --all --all-namespaces || true
+          kubectl delete pv --all || true
+          
+          # Upload destroy log to S3
+          aws s3 cp $LOG_FILE s3://ofurmaniuk/terraform-project/app-logs/$LOG_FILE
+          
+          echo "=== Application destruction completed ===" | tee -a $LOG_FILE
+
+      - name: Verify destruction
+        run: |
+          echo "=== Verifying destruction ==="
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          VERIFY_FILE="destroy-verification-${TIMESTAMP}.txt"
           
           {
             echo "Destruction completed at $(date)"
-            echo "Environment: ${{ env.TARGET_ENV }}"
             echo "Cluster: ${{ env.CLUSTER_NAME }}"
             echo ""
             echo "=== Remaining ArgoCD Applications ==="
-            kubectl get applications -n argocd -o wide 2>/dev/null || echo "No applications found"
+            kubectl get applications.argoproj.io -n argocd || echo "No applications found"
             echo ""
-            echo "=== Remaining resources by namespace ==="
-            for ns in argocd main dev monitoring ingress-nginx vault kube-system; do
-              echo "--- $ns namespace ---"
-              kubectl get deployments,statefulsets,daemonsets -n $ns 2>/dev/null || echo "No resources found"
-            done
-          } > $SUMMARY_FILE
+            echo "=== Remaining namespaces ==="
+            kubectl get namespaces
+            echo ""
+            echo "=== Remaining resources ==="
+            kubectl get all --all-namespaces
+          } > $VERIFY_FILE
           
-          aws s3 cp $SUMMARY_FILE s3://ofurmaniuk/terraform-project/app-logs/$SUMMARY_FILE
+          aws s3 cp $VERIFY_FILE s3://ofurmaniuk/terraform-project/app-logs/$VERIFY_FILE
