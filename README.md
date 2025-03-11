@@ -188,8 +188,7 @@ kubectl get secret --namespace monitoring monitoring-grafana -o jsonpath="{.data
 # Downloads dependencies for aws-ebs-csi-driver
 cd helm/charts/aws-ebs-csi-driver && helm dependency build && cd ../../..
 # Apply csi- driver that allows to create persisten volumes 
-kubectl apply -f k8s/argocd/applications/main/aws-ebs-csi-driver.yaml
-
+kubectl apply -f k8s/argocd/applications/main/-
 # ============= Monitoring ============= # 
 # Downloads dependencies for monitoring stack 
 cd helm/charts/monitoring && helm dependency build && cd ../../..

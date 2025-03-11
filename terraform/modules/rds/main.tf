@@ -9,7 +9,6 @@ resource "aws_security_group" "aurora" {
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
-    cidr_blocks     = ["10.0.0.0/16"]
     security_groups = [var.web_security_group_id, var.eks_cluster_security_group_id]
   }
 
@@ -39,7 +38,7 @@ resource "aws_rds_cluster" "aurora" {
   cluster_identifier      = "${var.environment}-aurora-cluster"
   engine                 = "aurora-postgresql"
   engine_mode            = "provisioned"
-  engine_version         = "14.8"
+  engine_version         = "14.7"
   database_name          = var.db_name
   master_username        = var.master_username
   master_password        = "password"
@@ -63,6 +62,7 @@ resource "aws_rds_cluster" "aurora" {
  timeouts {
     delete = "30m"  # Increase from default 5m to 30m
   }
+
 }
 
 # Aurora Instance

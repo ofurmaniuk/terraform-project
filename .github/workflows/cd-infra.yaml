@@ -14,9 +14,9 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - "modules/**"
+      - "terraform/modules/**"
+      - "terraform/environments/main/**"
       - ".github/workflows/infra-cd.yaml"
-      - "*.tf"
 
 permissions:
   id-token: write
@@ -29,6 +29,8 @@ concurrency:
 env:
   AWS_REGION: us-east-2
   TF_IN_AUTOMATION: true
+  # Added this to specify the Terraform directory
+  TF_DIR: terraform/environments/main
 
 jobs:
   lint:
@@ -56,6 +58,8 @@ jobs:
       - run: tflint --init
       
       - name: Run TFLint and upload to S3
+        # Added working-directory
+        working-directory: ${{ env.TF_DIR }}
         run: |
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
           tflint --format json | tee tflint-${TIMESTAMP}.json
@@ -87,10 +91,14 @@ jobs:
           terraform_version: "1.10.1"
       
       - name: Initialize Terraform
+        # Added working-directory
+        working-directory: ${{ env.TF_DIR }}
         run: terraform init
         
       - name: Terraform Plan
         id: plan
+        # Added working-directory
+        working-directory: ${{ env.TF_DIR }}
         run: |
           terraform plan -out=tfplan | tee tf-plan-output.txt
         continue-on-error: true
@@ -99,7 +107,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tf-plan
-          path: tf-plan-output.txt
+          # Added correct path
+          path: ${{ env.TF_DIR }}/tf-plan-output.txt
 
       - name: Check Plan Status
         if: steps.plan.outcome == 'failure'
@@ -131,21 +140,29 @@ jobs:
           terraform_version: "1.10.1"
       
       - name: Initialize Terraform
+        # Added working-directory
+        working-directory: ${{ env.TF_DIR }}
         run: terraform init
 
       - name: Create VPC and Networking
+        # Added working-directory
+        working-directory: ${{ env.TF_DIR }}
         run: |
           terraform apply -target=module.vpc -auto-approve
           echo "Waiting for VPC resources to be ready..."
           sleep 30
 
       - name: Create EKS Cluster
+        # Added working-directory
+        working-directory: ${{ env.TF_DIR }}
         run: |
           terraform apply -target=module.eks.aws_eks_cluster.main -auto-approve
           echo "Waiting for EKS cluster to be ready..."
           sleep 90
 
       - name: Create and Wait for Node Group
+        # Added working-directory
+        working-directory: ${{ env.TF_DIR }}
         run: |
             terraform apply -target=module.eks.aws_eks_node_group.main -auto-approve
             echo "Waiting for node group to be ready..."
@@ -166,12 +183,16 @@ jobs:
             sleep 30
   
       - name: Create RDS Instance
+        # Added working-directory
+        working-directory: ${{ env.TF_DIR }}
         run: |
             terraform apply -target=module.rds -auto-approve
             echo "Waiting for RDS to be ready..."
             sleep 60
   
       - name: Deploy Tools and Applications
+        # Added working-directory
+        working-directory: ${{ env.TF_DIR }}
         run: |
             terraform apply -auto-approve
             
@@ -188,4 +209,4 @@ jobs:
             kubectl -n argocd wait --for=condition=available deployment/argocd-server --timeout=300s || exit 1
             
             echo "Verifying RDS..."
-            aws rds describe-db-clusters --query 'DBClusters[?DBClusterIdentifier==`production-aurora-cluster`].Status' || exit 1    
+            aws rds describe-db-clusters --query 'DBClusters[?DBClusterIdentifier==`production-aurora-cluster`].Status' || exit 1
