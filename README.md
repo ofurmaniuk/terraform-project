@@ -232,7 +232,7 @@ vault operator unseal KEY3
 
 
 # Authenticate with root token
-  ROOT_TOKENvault login
+   vault login ROOT_TOKEN
 ``` 
 
 ```shell
@@ -286,7 +286,7 @@ kubectl delete -f k8s/argocd/applications/main/api.yaml --wait=false
 
 kubectl apply -f k8s/argocd/applications/main/web.yaml  
 
-kubectl get ingress -n production
+kubectl get ingress -n application
 
 ``` 
 
