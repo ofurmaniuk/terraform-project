@@ -46,6 +46,13 @@ module "tools" {
   cluster_endpoint      = module.eks.cluster_endpoint
   cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
 
+  # ADDED: Explicit provider mapping
+  providers = {
+    kubernetes = kubernetes
+    helm       = helm
+    kubectl    = kubectl
+  }
+
   depends_on = [
     module.eks
   ]
