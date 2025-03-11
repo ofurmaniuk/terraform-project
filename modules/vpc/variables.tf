@@ -48,3 +48,9 @@ variable "az_b" {
   type        = string
   default     = "us-east-2b"
 }
+
+variable "tags" {
+  description = "Additional resource tags"
+  type        = map(string)
+  default     = {}
+}
