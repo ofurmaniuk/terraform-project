@@ -182,6 +182,9 @@ kubectl get svc -n monitoring
 kubectl get ingress -n monitoring
 # Check Grafana password 
 kubectl get secret --namespace monitoring monitoring-grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
+
+kubectl get ingress -n monitoring monitoring-grafana -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+http://
 # dashbord for prometheus 1860 
 # dashboard for loki 15141
 # dashboard for Falco 11914 

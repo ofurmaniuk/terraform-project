@@ -21,20 +21,15 @@ grafana:
     enabled: true
     size: 2Gi
   service:
-    type: ClusterIP
+    type: LoadBalancer
     port: 80
+    targetPort: 3000
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+      service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+      service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
   adminUser: admin
   adminPassword: admin
-  ingress:
-    enabled: true
-    ingressClassName: nginx
-    annotations:
-      kubernetes.io/ingress.class: nginx
-      nginx.ingress.kubernetes.io/ssl-redirect: "false"
-      nginx.ingress.kubernetes.io/rewrite-target: /$2
-    path: /grafana(/|$)(.*)
-    pathType: Prefix
-    hosts: [""]
   datasources:
     datasources.yaml:
       apiVersion: 1
