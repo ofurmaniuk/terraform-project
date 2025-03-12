@@ -175,9 +175,11 @@ kubectl get svc -n argocd
 kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 -d
 
 # =============== Grafana =============== #
-
+kubectl port-forward -n monitoring pod/monitoring-grafana-dbd8f6fff-tznmq 3000:3000
+http://localhost:3000 
 # Check  service 
 kubectl get svc -n monitoring 
+kubectl get ingress -n monitoring
 # Check Grafana password 
 kubectl get secret --namespace monitoring monitoring-grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
 # dashbord for prometheus 1860 
