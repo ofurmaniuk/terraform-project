@@ -1,372 +1,120 @@
-# --- Global overrides ---
 nameOverride: monitoring
 fullnameOverride: monitoring
 
-# --- Prometheus configuration ---
 prometheus:
   server:
     persistentVolume:
-      enabled: true # Enable persistent volume for Prometheus server data
+      enabled: true
       size: 4Gi
     service:
-      type: LoadBalancer # Expose Prometheus via AWS NLB
-      annotations:
-        service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
-    resources: # Resource limits for Prometheus server
+      type: ClusterIP
+    resources:
       limits:
         cpu: 300m
         memory: 512Mi
       requests:
         cpu: 100m
         memory: 256Mi
-    affinity: # Spread Prometheus pods across different nodes
-      podAntiAffinity:
-        preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 100
-            podAffinityTerm:
-              labelSelector:
-                matchExpressions:
-                  - key: app.kubernetes.io/component
-                    operator: In
-                    values:
-                      - prometheus
-              topologyKey: "kubernetes.io/hostname"
 
-# --- Grafana configuration ---
 grafana:
-  persistence: # Persistent storage for Grafana dashboards
-    type: pvc
+  persistence:
     enabled: true
     size: 2Gi
-  service: # Expose Grafana via AWS NLB
+  service:
     type: LoadBalancer
     port: 80
     targetPort: 3000
     annotations:
       service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
-  resources: # Resource allocation for Grafana
-    limits:
-      cpu: 200m
-      memory: 256Mi
-    requests:
-      cpu: 100m
-      memory: 128Mi
-  affinity: # Pod anti-affinity rules
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          podAffinityTerm:
-            labelSelector:
-              matchExpressions:
-                - key: app.kubernetes.io/name
-                  operator: In
-                  values:
-                    - grafana
-            topologyKey: "kubernetes.io/hostname"
-  datasources: # Preconfigured data sources
+      service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+      service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+  adminUser: admin
+  adminPassword: admin
+  datasources:
     datasources.yaml:
       apiVersion: 1
-      deleteDatasources: []
       datasources:
-        - name: Prometheus # Default Prometheus datasource
+        - name: Prometheus
           type: prometheus
           url: http://monitoring-prometheus-server
           access: proxy
           isDefault: true
-        - name: Loki # Loki logs datasource
+        - name: Loki
           type: loki
+          url: http://monitoring-loki:3100
           access: proxy
-          url: http://monitoring-loki.monitoring.svc.cluster.local:3100
-          jsonData:
-            maxLines: 1000
-            timeout: 30
-            featureToggles:
-              live: true
-            liveEnabled: true
-          version: 1
-          editable: true
-          basicAuth: false
-  adminUser: admin # Default admin credentials
-  adminPassword: admin
-  grafana.ini: # Grafana server configuration
-    server:
-      root_url: "%(protocol)s://%(domain)s/"
-    auth:
-      disable_login_form: false
-    security:
-      allow_embedding: true
 
-# --- Loki configuration ---
 loki:
   enabled: true
-  singleBinary: # Single binary mode for simplicity
+  singleBinary:
     replicas: 1
-    extraArgs:
-      - -memberlist.bind-addr=0.0.0.0:7946
-  affinity: # Spread Loki pods
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          podAffinityTerm:
-            labelSelector:
-              matchExpressions:
-                - key: app.kubernetes.io/name
-                  operator: In
-                  values:
-                    - loki
-            topologyKey: "kubernetes.io/hostname"
-  livenessProbe: # Health checks
-    httpGet:
-      path: /ready
-      port: http-metrics
-    initialDelaySeconds: 120
-    timeoutSeconds: 5
-    periodSeconds: 20
-    successThreshold: 1
-    failureThreshold: 6
-  readinessProbe:
-    httpGet:
-      path: /ready
-      port: http-metrics
-    initialDelaySeconds: 90
-    timeoutSeconds: 5
-    periodSeconds: 20
-    successThreshold: 1
-    failureThreshold: 6
-  service: # Internal ClusterIP service
-    type: ClusterIP
-    name: monitoring-loki
-    port: 3100
-    targetPort: 3100
-    annotations: {}
-  containerSecurityContext: # Security restrictions
-    runAsUser: 10001
-    runAsGroup: 10001
-    runAsNonRoot: true
-    capabilities:
-      drop:
-        - ALL
-    readOnlyRootFilesystem: true
-  persistence: # Loki data storage
+
+  persistence:
     enabled: true
     size: 5Gi
-    storageClass: gp2
-  resources: # Loki resource allocation
+
+  loki:
+    auth_enabled: false
+    server:
+      http_listen_port: 3100
+      grpc_listen_port: 9095
+      
+    storage:
+      type: filesystem
+      
+    structuredConfig:
+      common:
+        instance_addr: 127.0.0.1
+        path_prefix: /tmp/loki
+        storage:
+          filesystem:
+            chunks_directory: /tmp/loki/chunks
+            rules_directory: /tmp/loki/rules
+        replication_factor: 1
+        ring:
+          kvstore:
+            store: inmemory
+
+      schema_config:
+        configs:
+          - from: 2020-10-24
+            store: boltdb-shipper
+            object_store: filesystem
+            schema: v11
+            index:
+              prefix: index_
+              period: 24h
+
+      limits_config:
+        enforce_metric_name: false
+        reject_old_samples: true
+        reject_old_samples_max_age: 168h
+        max_entries_limit_per_query: 5000
+        ingestion_rate_mb: 4
+        ingestion_burst_size_mb: 6
+
+  resources:
     limits:
       cpu: 500m
       memory: 512Mi
     requests:
       cpu: 200m
       memory: 256Mi
-  loki: # Loki server configuration
-    auth_enabled: false
-    server:
-      http_listen_port: 3100
-      http_listen_address: "0.0.0.0"
-      grpc_listen_port: 9095
-      grpc_listen_address: "0.0.0.0"
-      log_level: "info"
-    ingester:
-      lifecycler:
-        address: "0.0.0.0"
-        ring:
-          kvstore:
-            store: inmemory
-          replication_factor: 1
-      chunk_idle_period: 30m
-      chunk_retain_period: 15m
-      wal:
-        dir: /data/loki/wal
-    storage_config:
-      boltdb_shipper:
-        active_index_directory: /data/loki/index
-        cache_location: /data/loki/boltdb-cache
-        shared_store: filesystem
-      filesystem:
-        directory: /data/loki/chunks
-    schema_config:
-      configs:
-        - from: "2020-10-24"
-          store: boltdb-shipper
-          object_store: filesystem
-          schema: v11
-          index:
-            prefix: index_
-            period: 24h
-    compactor:
-      shared_store: filesystem
-      working_directory: /data/loki/boltdb-shipper-compactor
-      retention_enabled: false
-    limits_config:
-      enforce_metric_name: false
-      reject_old_samples: true
-      reject_old_samples_max_age: 168h
-      max_entries_limit_per_query: 5000
-    table_manager:
-      retention_deletes_enabled: false
-      retention_period: 0s
 
-# --- Promtail configuration ---
 promtail:
   enabled: true
-  resources: # Promtail resource limits
+  config:
+    serverPort: 3101
+    clients:
+      - url: http://monitoring-loki:3100/loki/api/v1/push
+
+  resources:
     limits:
       cpu: 100m
       memory: 128Mi
     requests:
       cpu: 50m
       memory: 64Mi
-  tolerations: # Allow scheduling on all nodes
+
+  tolerations:
     - operator: Exists
-  affinity: # Spread Promtail pods
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          podAffinityTerm:
-            labelSelector:
-              matchExpressions:
-                - key: app.kubernetes.io/name
-                  operator: In
-                  values:
-                    - promtail
-            topologyKey: "kubernetes.io/hostname"
-  config: # Log collection setup
-    server:
-      log_level: debug
-      http_listen_port: 3101
-    clients:
-      - url: http://monitoring-loki:3100/loki/api/v1/push
-        tenant_id: fake
-        external_labels:
-          cluster: eks
-          environment: monitoring
-        batchwait: "1s"
-        batchsize: 102400
-        timeout: "10s"
-        backoff_config:
-          min_period: "100ms"
-          max_period: "5s"
-    positions:
-      filename: /run/promtail/positions.yaml
-    scrape_configs: # Kubernetes pod log scraping
-      - job_name: kubernetes-pods
-        pipeline_stages:
-          - cri: {} # CRI parser for container logs
-        kubernetes_sd_configs:
-          - role: pod
-        relabel_configs:
-          - source_labels: ["__meta_kubernetes_pod_container_name"]
-            target_label: container
-          - source_labels: ["__meta_kubernetes_pod_name"]
-            target_label: pod
-          - source_labels: ["__meta_kubernetes_namespace"]
-            target_label: namespace
-          - source_labels: ["__meta_kubernetes_pod_node_name"]
-            target_label: node
-      - job_name: falco # Новый job для Falco
-        pipeline_stages:
-          - json: # Парсим JSON-логи Falco
-              expressions:
-                output: output
-                priority: priority
-                rule: rule
-          - labels: # Добавляем лейблы для удобства
-              output: output
-              priority: priority
-              rule: rule
-        kubernetes_sd_configs:
-          - role: pod
-        relabel_configs:
-          - source_labels: [__meta_kubernetes_pod_label_app]
-            action: keep
-            regex: falco # Собираем логи только из подов с лейблом app=falco
-          - source_labels: ["__meta_kubernetes_pod_container_name"]
-            target_label: container
-          - source_labels: ["__meta_kubernetes_pod_name"]
-            target_label: pod
-          - source_labels: ["__meta_kubernetes_namespace"]
-            target_label: namespace
-          - source_labels: ["__meta_kubernetes_pod_node_name"]
-            target_label: node
-
-# --- Falco runtime security ---
-falco:
-  falcosidekick:
-    enabled: true
-    config:
-      debug: true
-      checkcert: false
-      loki:
-        enabled: true
-        hostport: "http://monitoring-loki.monitoring.svc.cluster.local:3100"
-        minimumpriority: "debug"
-
-    resources:
-      limits:
-        cpu: 100m
-        memory: 128Mi
-      requests:
-        cpu: 50m
-        memory: 64Mi
-
-  metrics:
-    enabled: true
-    service:
-      type: ClusterIP
-      port: 8765
-    serviceMonitor:
-      enabled: true
-      namespace: monitoring
-      interval: 15s
-      scrapeTimeout: 10s
-      additionalLabels:
-        release: monitoring
-
-  driver:
-    enabled: true
-    kind: ebpf
-    loader:
-      enabled: true
-      initContainer:
-        securityContext:
-          privileged: true
-        env:
-          - name: FALCO_BPF_PROBE
-            value: "/root/.falco/falco-bpf.o"
-
-  containerSecurityContext:
-    privileged: true
-    capabilities:
-      add:
-        - SYS_ADMIN
-        - SYS_RESOURCE
-        - SYS_PTRACE
-        - NET_ADMIN
-        - IPC_LOCK
-        - SYS_NICE
-
-  collectors:
-    enabled: true
-    docker:
-      enabled: true
-      socket: /var/run/docker.sock
-    containerd:
-      enabled: true
-      socket: /run/containerd/containerd.sock
-    crio:
-      enabled: true
-      socket: /run/crio/crio.sock
-
-  log_level: info
-  json_output: true
-  log_stderr: true
-
-  rules_files:
-    - /etc/falco/falco_rules.yaml
-    - /etc/falco/falco_rules.local.yaml
-    - /etc/falco/rules.d
-
-  stdout_output:
-    enabled: true
-  syslog_output:
-    enabled: false
