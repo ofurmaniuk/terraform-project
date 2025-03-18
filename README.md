@@ -1,317 +1,158 @@
-# terraform-project
+# Terraform AWS Infrastructure
 
-```shell
-# Get public and private keys 
- ssh-keygen
- cat .ssh/id_rsa.pub
-# Clone repository (SSH)
-git clone git@github.com:ofurmaniuk/terraform-project.git
+## Overview
+This repository delivers an AWS infrastructure orchestrated with Terraform, featuring a three-tier architecture. It utilizes Amazon EKS for compute, Aurora PostgreSQL for data persistence, and a secure networking layer, all managed via GitOps with ArgoCD. Automated CI/CD pipelines, powered by GitHub Actions, ensure seamless deployment and maintenance of infrastructure and applications. This pet project explores scalability, security, and infrastructure-as-code practices in a comprehensive cloud environment.
+
+## Architecture Diagram
+
+![AWS Infrastructure Architecture Diagram](docs/images/aws-architecture-diagram.svg)
+
+## Architecture
+The project implements a three-tier architecture optimized for resilience and scalability:
+
+- **Networking Tier**: A VPC with public and private subnets across multiple availability zones, reinforced with route tables and security groups for high availability and isolation.
+- **Compute Tier**: An Amazon EKS cluster with managed node groups, integrated with AWS load balancing and IAM for a robust Kubernetes environment.
+- **Database Tier**: An Aurora PostgreSQL cluster with serverless scaling, deployed in private subnets for secure and scalable data management.
+
+Additional components enhance functionality:
+
+- **CI/CD**: GitHub Actions automates deployments for continuous integration and delivery.
+- **GitOps**: ArgoCD provides declarative Kubernetes management for version-controlled, auditable deployments.
+- **Monitoring**: Prometheus, Grafana, Loki, and Falco deliver comprehensive observability of system performance and security.
+
+## Repository Structure
+The repository is organized for modularity and maintainability:
+
+```
+.
+├── .github/workflows      # GitHub Actions workflows for CI/CD pipelines
+├── apps                   # Source code for sample API and Web applications
+├── helm/charts            # Helm charts for Kubernetes deployments
+├── k8s/argocd             # ArgoCD manifests for GitOps workflows
+├── modules                # Modular Terraform configurations
+│   ├── eks                # EKS cluster and node group setup
+│   ├── rds                # Aurora PostgreSQL database configuration
+│   ├── tools              # Kubernetes tools (e.g., monitoring, logging)
+│   └── vpc                # VPC and networking resources
+├── root                   # Root Terraform configuration tying modules together
+└── scripts                # Utility scripts for automation tasks
 ```
 
-```shell
-# Terraform installation 
-sudo yum install -y yum-utils && \
-sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo && \
-sudo yum -y install terraform
-```
-
-```shell
-#  Docker build 
-docker buildx build --platform linux/amd64 -t ofurmaniuk/app-api:latest . 
-docker tag ofurmaniuk/app-api:latest app-api:latest
-docker push ofurmaniuk/app-api:latest
-
-docker buildx build --platform linux/amd64 -t ofurmaniuk/app-web:latest . 
-docker tag ofurmaniuk/app-web:latest app-web:latest
-docker push ofurmaniuk/app-web:latest
-```
-
-```shell
-# Delete cache
-find / -type d -name ".terraform" -exec rm -rf {} + && \
-rm -rf $$HOME/.terraform.d/plugin-cache/*
-```
-
-```shell
-# Linux commands 
-df -h # Check disk space
-ls -a # Show hidden files
-```
-
-```shell
-# AWS Authorization:
-aws configure
-- AWS Access Key ID:
-- AWS Secret Access Key:
-- Default region name: us-east-2
-- Default output format: json
-```
-
-```shell
-# Find your "Cluster Name":
-terraform output configure_kubectl
-#  Configure  kubeconfig file to work with Cluster:
-aws eks update-kubeconfig --region us-east-2 --name production-cluster
-#  Useful commands 
-kubectl get namespaces
-kubectl get nodes 
-kubectl cluster-info
-kubectl get pods --all-namespaces or k get pods -A
-kubectl get svc --all-namespaces
-kubectl describe nodes
-kubectl get pods -A -w  # -w means watch ,to monitor pod creation
-```
-
-```shell
-# Show HOST of Databases:
-aws rds describe-db-instances --query 'DBInstances[*].[Endpoint.Address,Endpoint.Port,DBInstanceIdentifier]' --output table
-# Install  ingress-nginx controller ( needed for the Web !)
-k apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.9.5/deploy/static/provider/cloud/deploy.yaml
-```
-
-
-
-```shell 
-# Check Linux (bash config file) alias
-cat ~/.bashrc
-```
-
-```shell 
-# Send alias commands to bash config file ( CloudShell )
-echo 'alias k="kubectl" && alias kc="kubectl config" && alias kcc="kubectl config current-context" && alias kcg="kubectl config get-contexts" && alias kcs="kubectl config set-context" && alias kcu="kubectl config use-context" && alias ka="kubectl apply -f" && alias kd="kubectl delete" && alias kdf="kubectl delete -f" && alias kdp="kubectl delete pod" && alias kg="kubectl get" && alias kga="kubectl get all" && alias kgaa="kubectl get all --all-namespaces" && alias kgn="kubectl get nodes" && alias kgno="kubectl get nodes -o wide" && alias kgp="kubectl get pods" && alias kgpa="kubectl get pods --all-namespaces" && alias kgpo="kubectl get pods -o wide" && alias kgs="kubectl get services" && alias kgsa="kubectl get services --all-namespaces" && alias kl="kubectl logs" && alias klf="kubectl logs -f" && alias kpf="kubectl port-forward" && alias kex="kubectl exec -it" && alias kdesc="kubectl describe" && alias ktp="kubectl top pod" && alias ktn="kubectl top node"' >> ~/.bashrc && source ~/.bashrc
-```
-
-```shell
-# Send alias commands to zsh config file ( Mac terminal )
-echo 'alias k="kubectl" && alias kc="kubectl config" && alias kcc="kubectl config current-context" && alias kcg="kubectl config get-contexts" && alias kcs="kubectl config set-context" && alias kcu="kubectl config use-context" && alias ka="kubectl apply -f" && alias kd="kubectl delete" && alias kdf="kubectl delete -f" && alias kdp="kubectl delete pod" && alias kg="kubectl get" && alias kga="kubectl get all" && alias kgaa="kubectl get all --all-namespaces" && alias kgn="kubectl get nodes" && alias kgno="kubectl get nodes -o wide" && alias kgp="kubectl get pods" && alias kgpa="kubectl get pods --all-namespaces" && alias kgpo="kubectl get pods -o wide" && alias kgs="kubectl get services" && alias kgsa="kubectl get services --all-namespaces" && alias kl="kubectl logs" && alias klf="kubectl logs -f" && alias kpf="kubectl port-forward" && alias kex="kubectl exec -it" && alias kdesc="kubectl describe" && alias ktp="kubectl top pod" && alias ktn="kubectl top node"' >> ~/.zshrc && source ~/.zshrc
-```
-
-```shell
-# login to EKS cluster 
-aws eks update-kubeconfig --name production-cluster --region us-east-2
-
-# Create namespace 
-kubectl create namespace production
-
-# Deploy ConfigMaps
-kubectl apply -f k8s/api/api-cm.yaml
-kubectl apply -f k8s/web/web-cm.yaml 
-
-# Deploy Services 
-kubectl apply -f k8s/api/api-svc.yaml
-kubectl apply -f k8s/web/web-svc.yaml 
-
-# Deploy aplications API and WEB 
-kubectl apply -f k8s/api/api-deploy.yaml 
-kubectl apply -f k8s/web/web-deploy.yaml 
-```
-
-```shell
-# Important! Web to work properly needs controller. 
-# Install  ingress-nginx controller. 
-k apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.9.5/deploy/static/provider/cloud/deploy.yaml
-
-chmod +x install-nginx-controller.sh
-bash scripts/post-install.s
-```
-
-```shell 
-npm install --save-dev eslint prettier eslint-config-prettier eslint-plugin-prettier
-
-
-
-
- # Dockerhub images name: 
- # image: ofurmaniuk/app-api:latest
- # image: ofurmaniuk/app-web:latest
-
-```shell 
-# CI 
-
-# 1. Configure GitHub Repository Secrets
-
-# 2. SonarCloud Setup
-- Go to sonarcloud.io
-- Create new organization
-- Create new project
-- Get SONAR_TOKEN
-
-# ESLint/Prettier Setup
-cd apps/api
-# Verify .eslintrc.js exists (it does)
-# Run linting locally to test:
-npm install
-npx eslint .
-npx prettier --check .
-
-# DockerHub setup 
-
-# Create DockerHub repository
-docker login
-# Repository should be: ofurmaniuk/app-api
-
-# Verification
-
-# Make a test commit in apps/api
-git add .
-git commit -m "test: trigger CI pipeline"
-git push
-
-# Check Actions tab in GitHub
-# Verify:
-- Linting passes
-- SonarCloud analysis runs
-- Docker image builds/pushes
-- Trivy scan completes
-
-```shell
-# Log in to your cluster
-aws eks update-kubeconfig --name production-cluster --region us-east-2
-
-# ========== ArgoCD ===========#
-# Get service ( get argocd-server address)
-kubectl get svc -n argocd
-# Get the initial admin password
-kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 -d
-
-# =============== Grafana =============== #
-kubectl port-forward -n monitoring pod/monitoring-grafana-dbd8f6fff-tznmq 3000:3000
-http://localhost:3000 
-# Check  service 
-kubectl get svc -n monitoring 
-kubectl get ingress -n monitoring
-# Check Grafana password 
-kubectl get secret --namespace monitoring monitoring-grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
-
-kubectl get ingress -n monitoring monitoring-grafana -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
-http://
-# dashbord for prometheus 1860 
-# dashboard for loki 15141
-# dashboard for Falco 11914 
-
-# ============= AWS-ebs-csi-driver ============= # 
-# Downloads dependencies for aws-ebs-csi-driver
-cd helm/charts/aws-ebs-csi-driver && helm dependency build && cd ../../..
-# Apply csi- driver that allows to create persisten volumes 
-kubectl apply -f k8s/argocd/applications/main/-
-# ============= Monitoring ============= # 
-# Downloads dependencies for monitoring stack 
-cd helm/charts/monitoring && helm dependency build && cd ../../..
-# Apply manifest of monitoring stack ( list of programs)
-kubectl apply -f k8s/argocd/applications/main/monitoring.yaml
-
-# ============= Ingress-nginx ============= # 
-# Downloads dependencies for ingress-nginx
-cd helm/charts/ingress-nginx && helm dependency build && cd ../../..
-# Apply manifest of ingress-nginx 
-kubectl apply -f k8s/argocd/applications/main/ingress-nginx.yaml 
-
-# ============= Metrics-server ============= # 
-# Downloads dependencies for metrics-server
-cd helm/charts/metrics-server && helm dependency build && cd ../../..
-# Apply manifest of metrics-server
-kubectl apply -f k8s/argocd/applications/main/metrics-server.yaml 
-```
-
-```shell
-# ============= Vault ============= # 
-# Get your vault svc 
-kubectl get svc -n vault vault-ui -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
-http://<your-load-balancer-url>:8200
-# use token and root token as password
-
-# Downloads dependencies for vault 
-cd helm/charts/vault && helm dependency build && cd ../../..
-# Apply manifest of vault 
-kubectl apply -f k8s/argocd/applications/main/vault.yaml
-
-# Initialize Vault and get unsealing keys - CRITICAL: BACKUP THESE KEYS!
-kubectl exec -it vault-0 -n vault -- sh
-vault operator init
-
-# Unseal the vault with 3 different keys
-vault operator unseal KEY1
-vault operator unseal KEY2
-vault operator unseal KEY3
-
-
-# Authenticate with root token
-   vault login ROOT_TOKEN
-``` 
-
-```shell
-# Enable KV2 secrets engine for your project
-vault secrets enable -path=secret kv-v2
-
-# Create secret with your Aurora DB credentials (removed 'data' from path)
-vault kv put secret/database \
-    username="dbadmin" \
-    password="password" \
-    host="production-aurora-cluster.cluster-cdpxotwegnsy.us-east-2.rds.amazonaws.com" \
-    port="5432" \
-    dbname="mydatabase"
-
-# Enable Kubernetes auth if not already enabled
-vault auth enable kubernetes
-
-# Configure Kubernetes auth for your EKS cluster with complete config
-vault write auth/kubernetes/config \
-    kubernetes_host="https://kubernetes.default.svc" \
-    token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
-    kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
-    issuer="https://kubernetes.default.svc.cluster.local"
-
-# Create policy for your API access (updated path)
-vault policy write api - <<EOF
-path "secret/data/database" {
-  capabilities = ["read"]
-}
-EOF
-
-# Create role for your API service account (changed name to match pod annotation)
-vault write auth/kubernetes/role/api \
-    bound_service_account_names=api-sa \
-    bound_service_account_namespaces=application\
-    policies=api \
-    ttl=1h
-``` 
-
-
-```shell
-kubectl delete application vault -n argocd
-kubectl delete namespace vault --force --grace-period=0
-
-``` 
-
-```shell
-kubectl apply -f k8s/argocd/applications/main/api.yaml  
-
-kubectl delete -f k8s/argocd/applications/main/api.yaml --wait=false
-
-kubectl apply -f k8s/argocd/applications/main/web.yaml  
-
-kubectl get ingress -n application
-
-``` 
-
-`
-
-
-
-
-
-
-If i create a yaml file and then apply it  it means i do it in the declarative method /way. 
-If i run a long command with resource parameters in terminal it means i do it in the imperative way/method 
-
-declarative - what to do ? better because you create a file and you  can save it 
-imperative -how to do ? was it was first they developed declarative. 
-for example :
-if i go to aws and create needed resources , it menas imperative method of resorces creation 
-if i do it via terraform - it meants i use declarative method of resources creation ( this is better beacuse declarative method can be authomated)
-
-Ansible is a IaC tool and it declarative way to install software and configure system/network on VMs 
-example: 
-on Digital ocean we created a Centoes machine/VM and using ansible playbooks to ....
-
-
+This structure promotes separation of concerns, easing updates and scaling.
+
+## Infrastructure Components
+
+### VPC & Networking
+- Multi-AZ VPC with public and private subnets for high availability.
+- NAT Gateway for secure outbound traffic from private subnets.
+- Internet Gateway for public subnet connectivity.
+- Route tables and security groups enforcing network isolation and least-privilege access.
+- Deployed in the **us-east-2** region across multiple availability zones.
+
+### Kubernetes (EKS)
+- Managed EKS cluster with optimized node groups for efficient workloads.
+- CSI drivers for dynamic persistent storage provisioning.
+- IAM roles with least-privilege access for secure AWS integrations.
+- AWS Load Balancer Controller for scalable and reliable ingress traffic management.
+
+### Database (RDS)
+- Aurora PostgreSQL with serverless scaling to adapt to workload demands.
+- Hosted in private subnets with automated backups and maintenance for data durability.
+- Security groups restricting access to authorized services only.
+
+### GitOps Components
+- **ArgoCD**: Facilitates continuous delivery of Kubernetes applications via GitOps.
+  - Employs sync waves to manage deployment order and dependencies.
+  - Application manifests located in k8s/argocd.
+- **Helm**: Packages Kubernetes resources for consistent, repeatable deployments.
+- **Vault**: Secures sensitive data with dynamic secrets and Kubernetes integration, providing secure database credentials to the API application.
+
+### Monitoring Stack
+- **Prometheus**: Collects metrics from infrastructure and applications.
+- **Grafana**: Visualizes metrics and logs with customizable dashboards.
+- **Loki**: Centralizes logs for streamlined analysis.
+- **Promtail**: Forwards logs to Loki for processing.
+- **Falco**: Monitors runtime security, alerting on suspicious activities.
+
+## Deployment Workflow
+
+### Infrastructure Deployment (Terraform)
+- **Networking**: Provisions VPC, subnets, gateways, and security groups.
+- **Compute**: Deploys the EKS cluster with managed node groups.
+- **Database**: Configures the Aurora PostgreSQL cluster in private subnets.
+- **Tools**: Installs Kubernetes tools via Helm charts.
+
+Terraform deploys these components modularly, with state stored in an S3 bucket ("ofurmaniuk" at "terraform-project/terraform.tfstate") for persistence and collaboration.
+
+### Application Deployment (GitOps)
+- CI pipelines build and containerize applications.
+- ArgoCD synchronizes deployments to EKS based on Git changes.
+- Vault secures runtime secrets.
+- Ingress controllers route external traffic to applications.
+
+## CI/CD Pipelines
+
+- **Infrastructure Pipeline**: 
+  - Automates Terraform validation, planning, and application
+  - Implements staged deployment (VPC → EKS → Node Groups → RDS → Tools)
+  - Includes verification steps and health checks between critical components
+  - Triggers on changes to Terraform files or via manual workflow dispatch
+
+- **Application Pipelines**: 
+  - Runs ESLint for code quality and SonarCloud for static analysis
+  - Builds and publishes Docker images to DockerHub with versioned tags
+  - Performs Trivy vulnerability scanning on container images
+  - Handles both API (Node.js/Express) and Web frontend applications
+
+- **Deployment Pipelines**: 
+  - Leverages ArgoCD for GitOps-based deployment with sync waves
+  - Follows specific sequence: CSI Driver → Monitoring → Ingress → Metrics Server → Vault → Applications
+  - Logs detailed deployment information for auditing and troubleshooting
+  - Enables continuous synchronization between Git and the Kubernetes cluster
+
+These pipelines minimize manual effort while ensuring consistent, repeatable deployments across the entire infrastructure.
+
+## Prerequisites
+To use this project, ensure you have:
+
+- An AWS account with permissions for VPC, EKS, RDS, and related resources.
+- Terraform (v1.0.0 or higher).
+- kubectl for Kubernetes interaction.
+- Helm for managing Kubernetes packages.
+- Docker for building application images.
+- A GitHub account with GitHub Actions enabled.
+
+Note: Specify exact versions if compatibility is critical.
+
+## Applications
+Two sample applications showcase the infrastructure:
+
+- **API Application**: A Node.js Express API integrated with Aurora PostgreSQL, demonstrating database connectivity.
+- **Web Application**: A frontend app interacting with the API, illustrating full-stack deployment.
+
+Both are containerized, deployed via Helm, and managed through GitOps.
+
+## Operations
+
+### Infrastructure Scaling
+- Modify Terraform variables to resize resources (e.g., EKS node groups).
+- Aurora PostgreSQL scales automatically with serverless configuration.
+- EKS supports node group auto-scaling based on demand.
+- Kubernetes HPA dynamically adjusts pod replicas.
+
+### Maintenance
+- **Secret Rotation**: Use Vault to periodically rotate database credentials and secrets.
+- **Upgrades**:
+  - Update EKS versions via Terraform module changes.
+  - Manage AWS resource updates (e.g., RDS engine) through Terraform.
+  - Upgrade applications and tools by updating Helm chart versions.
+
+## Acknowledgments
+This project builds on exceptional tools and platforms:
+
+- Terraform by HashiCorp
+- Amazon Web Services (AWS)
+- Kubernetes
+- ArgoCD for GitOps excellence
+- Helm
+- Vault by HashiCorp
